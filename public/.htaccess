@@ -5,20 +5,34 @@
 
     RewriteEngine On
 
-    # Handle Authorization Header
+    # 1. Force HTTPS jika diakses melalui HTTP pada domain pusimpel.com
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteCond %{HTTP_HOST} ^(?:www\.)?pusimpel\.com$ [NC]
+    RewriteRule ^(.*)$ https://pusimpel.com/absensids/$1 [R=301,L]
+
+    # 2. Redirect /public/ atau /public/index.php ke base URL bersih
+    RewriteCond %{THE_REQUEST} \s/absensids/public(?:/index\.php)?/?([^\s?]*) [NC]
+    RewriteRule ^ /absensids/%1 [R=301,L,NE]
+
+    # 3. Redirect permintaan langsung index.php ke base URL bersih
+    RewriteCond %{THE_REQUEST} \s/absensids/index\.php/?([^\s?]*) [NC]
+    RewriteRule ^ /absensids/%1 [R=301,L,NE]
+
+    # 4. Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
+    # 5. Handle X-XSRF-Token Header
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # 6. Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
+    # 7. Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
