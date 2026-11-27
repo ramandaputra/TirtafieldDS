@@ -30,33 +30,32 @@
     $currentRouteName = $isPegawai ? 'rekap.pegawai' : 'rekap.non-tetap';
 @endphp
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+<div class="max-w-[1260px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
     {{-- Breadcrumb & Header --}}
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div class="space-y-2">
             <a href="{{ route('dashboard') }}"
-               class="no-print inline-flex items-center gap-2 min-h-[44px] px-3 -ml-3 rounded-lg text-sm font-semibold transition-colors"
-               style="color: var(--accent-gold);">
+               class="no-print inline-flex items-center gap-2 min-h-[44px] px-3 -ml-3 rounded-full text-sm font-semibold text-[#38bdf8] hover:bg-white/10 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="19" y1="12" x2="5" y2="12" />
                     <polyline points="12 19 5 12 12 5" />
                 </svg>
                 <span>Kembali ke Beranda</span>
             </a>
-            <h1 class="font-vice-display text-3xl sm:text-4xl font-extrabold tracking-wide uppercase" style="color: var(--text-primary);">
+            <h1 class="text-2xl sm:text-3xl font-extrabold user-name-gradient">
                 {{ $pageTitle }}
             </h1>
-            <p class="text-sm" style="color: var(--text-secondary);">
+            <p class="text-sm text-[#cbd5e1]">
                 {{ $pageSubtitle }} Periode:
-                <span class="font-mono font-semibold" style="color: var(--text-primary);">{{ $filters['start_date'] }}</span>
+                <span class="font-mono font-semibold text-white">{{ $filters['start_date'] }}</span>
                 s/d
-                <span class="font-mono font-semibold" style="color: var(--text-primary);">{{ $filters['end_date'] }}</span>.
+                <span class="font-mono font-semibold text-white">{{ $filters['end_date'] }}</span>.
             </p>
         </div>
 
         <div class="no-print flex flex-wrap items-center gap-3 shrink-0">
             <a href="{{ route('rekap.export', array_merge(['category' => $category], $filters)) }}"
-               class="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center gap-2 vice-btn-coral">
+               class="min-h-[44px] px-5 py-2.5 rounded-full text-sm pusimpel-btn-primary inline-flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
@@ -67,7 +66,7 @@
 
             <button type="button"
                     onclick="window.print()"
-                    class="min-h-[44px] px-4 py-2.5 rounded-xl border text-sm font-semibold transition-colors inline-flex items-center gap-2 vice-btn-ghost">
+                    class="min-h-[44px] px-5 py-2.5 rounded-full text-sm font-semibold pusimpel-btn-ghost inline-flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polyline points="6 9 6 2 18 2 18 9" />
                     <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -79,7 +78,7 @@
     </div>
 
     @if ($dbError)
-        <div role="alert" class="rounded-xl border p-4 text-sm flex items-start gap-3 vice-badge-rs">
+        <div role="alert" class="rounded-2xl border p-4 text-sm flex items-start gap-3 badge-rose">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 mt-0.5" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
@@ -91,21 +90,30 @@
             </div>
         </div>
     @else
-        {{-- Sub-Status Quick Filter untuk Capeg, Honor, PKWT, Kontrak --}}
+        {{-- Sub-Status Filter Pills (Pusimpel Filter Pills Style) --}}
         @if (! empty($subStatusOptions))
-            <div class="no-print flex flex-wrap items-center gap-2" role="group" aria-label="Filter sub-status kepegawaian">
+            <div class="no-print filter-pills" role="group" aria-label="Filter sub-status kepegawaian">
                 <a href="{{ route($currentRouteName, array_merge($filters, ['sub_status' => ''])) }}"
-                   class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center border transition-colors {{ $filters['sub_status'] === '' ? 'vice-btn-teal border-transparent font-bold' : 'vice-btn-ghost' }}">
+                   class="pill-btn min-h-[44px] {{ $filters['sub_status'] === '' ? 'active' : '' }}">
                     Semua Status
                 </a>
                 @foreach ($subStatusOptions as $subOpt)
                     @php
                         $isActiveSub = strcasecmp($filters['sub_status'], $subOpt) === 0;
+                        $dotClass = match ($subOpt) {
+                            'Capeg' => 'dot-teknik',
+                            'Honor' => 'dot-manajemen',
+                            'PKWT' => 'dot-keuangan',
+                            default => 'dot-kepegawaian',
+                        };
                     @endphp
                     <a href="{{ route($currentRouteName, array_merge($filters, ['sub_status' => $subOpt])) }}"
-                       class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold inline-flex items-center gap-2 border transition-colors {{ $isActiveSub ? 'vice-btn-teal border-transparent font-bold' : 'vice-btn-ghost' }}">
+                       class="pill-btn min-h-[44px] {{ $isActiveSub ? 'active' : '' }}">
+                        @if (! $isActiveSub)
+                            <span class="category-dot {{ $dotClass }}" aria-hidden="true"></span>
+                        @endif
                         <span>{{ $subOpt }}</span>
-                        <span class="font-mono text-xs px-1.5 py-0.5 rounded {{ $isActiveSub ? 'bg-black/20' : 'vice-surface' }}">
+                        <span class="font-mono text-xs px-1.5 py-0.5 rounded-full {{ $isActiveSub ? 'bg-[#070c16]/15 text-[#070c16]' : 'bg-white/10 text-[#f1f5f9]' }}">
                             {{ $statusBreakdown[$subOpt] ?? 0 }}
                         </span>
                     </a>
@@ -114,17 +122,17 @@
         @endif
 
         {{-- Filter Form --}}
-        <section aria-label="Filter rekap absensi" class="no-print border rounded-2xl p-4 sm:p-5 space-y-4 vice-surface">
-            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b" style="border-color: var(--border-subtle);">
-                <span class="text-sm font-bold" style="color: var(--text-primary);">Filter Periode &amp; Personil</span>
+        <section aria-label="Filter rekap absensi" class="no-print pusimpel-card p-4 sm:p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+                <span class="font-heading text-sm font-bold text-white">Filter Periode &amp; Personil</span>
                 <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" data-preset="today" class="preset-btn min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-semibold vice-btn-ghost">
+                    <button type="button" data-preset="today" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
                         Hari Ini
                     </button>
-                    <button type="button" data-preset="7days" class="preset-btn min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-semibold vice-btn-ghost">
+                    <button type="button" data-preset="7days" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
                         7 Hari Terakhir
                     </button>
-                    <button type="button" data-preset="month" class="preset-btn min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-semibold vice-btn-ghost">
+                    <button type="button" data-preset="month" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
                         Bulan Ini
                     </button>
                 </div>
@@ -136,27 +144,27 @@
                 @endif
 
                 <div>
-                    <label for="start_date" class="block text-xs font-bold mb-1.5" style="color: var(--text-primary);">Tanggal Mulai</label>
+                    <label for="start_date" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Tanggal Mulai</label>
                     <input type="date" id="start_date" name="start_date" value="{{ $filters['start_date'] }}"
-                           class="w-full min-h-[44px] px-3 py-2 rounded-xl border text-sm vice-input">
+                           class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input">
                 </div>
 
                 <div>
-                    <label for="end_date" class="block text-xs font-bold mb-1.5" style="color: var(--text-primary);">Tanggal Akhir</label>
+                    <label for="end_date" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Tanggal Akhir</label>
                     <input type="date" id="end_date" name="end_date" value="{{ $filters['end_date'] }}"
-                           class="w-full min-h-[44px] px-3 py-2 rounded-xl border text-sm vice-input">
+                           class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input">
                 </div>
 
                 <div>
-                    <label for="q" class="block text-xs font-bold mb-1.5" style="color: var(--text-primary);">Cari Nama / NIK</label>
+                    <label for="q" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Cari Nama / NIK</label>
                     <input type="text" id="q" name="q" value="{{ $filters['q'] }}" placeholder="Nama atau NIK..."
-                           class="w-full min-h-[44px] px-3 py-2 rounded-xl border text-sm vice-input">
+                           class="w-full min-h-[44px] px-4 py-2 rounded-full text-sm pusimpel-input">
                 </div>
 
                 <div>
-                    <label for="department" class="block text-xs font-bold mb-1.5" style="color: var(--text-primary);">Bidang / Unit</label>
+                    <label for="department" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Bidang / Unit</label>
                     <select id="department" name="department"
-                            class="w-full min-h-[44px] px-3 py-2 rounded-xl border text-sm vice-input">
+                            class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input pusimpel-select">
                         <option value="">Semua Bidang</option>
                         @foreach ($departments as $dept)
                             <option value="{{ $dept }}" {{ $filters['department'] === $dept ? 'selected' : '' }}>{{ $dept }}</option>
@@ -165,9 +173,9 @@
                 </div>
 
                 <div>
-                    <label for="attendance_filter" class="block text-xs font-bold mb-1.5" style="color: var(--text-primary);">Status Kehadiran</label>
+                    <label for="attendance_filter" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Status Kehadiran</label>
                     <select id="attendance_filter" name="attendance_filter"
-                            class="w-full min-h-[44px] px-3 py-2 rounded-xl border text-sm vice-input">
+                            class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input pusimpel-select">
                         <option value="all" {{ $filters['attendance_filter'] === 'all' ? 'selected' : '' }}>Semua Personil</option>
                         <option value="present" {{ $filters['attendance_filter'] === 'present' ? 'selected' : '' }}>Sudah Presensi</option>
                         <option value="absent" {{ $filters['attendance_filter'] === 'absent' ? 'selected' : '' }}>Belum Presensi</option>
@@ -177,12 +185,12 @@
 
                 <div class="flex items-center gap-2">
                     <button type="submit" id="filterSubmitBtn"
-                            class="flex-1 min-h-[44px] px-4 py-2 rounded-xl text-sm font-bold transition-colors vice-btn-coral">
+                            class="flex-1 min-h-[44px] px-4 py-2 rounded-full text-sm pusimpel-btn-primary">
                         Terapkan
                     </button>
                     @if ($hasActiveFilter)
                         <a href="{{ route($currentRouteName, ['start_date' => $filters['start_date'], 'end_date' => $filters['end_date']]) }}"
-                           class="min-h-[44px] px-3.5 py-2 rounded-xl border text-sm font-semibold inline-flex items-center vice-btn-ghost">
+                           class="min-h-[44px] px-3.5 py-2 rounded-full text-sm font-semibold inline-flex items-center pusimpel-btn-ghost">
                             Reset
                         </a>
                     @endif
@@ -190,9 +198,9 @@
 
                 @if ($offices->isNotEmpty())
                     <div class="sm:col-span-2 lg:col-span-3">
-                        <label for="office_id" class="block text-xs font-bold mb-1.5" style="color: var(--text-primary);">Kantor Penempatan</label>
+                        <label for="office_id" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Kantor Penempatan</label>
                         <select id="office_id" name="office_id"
-                                class="w-full min-h-[44px] px-3 py-2 rounded-xl border text-sm vice-input">
+                                class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input pusimpel-select">
                             <option value="">Semua Kantor Penempatan</option>
                             @foreach ($offices as $office)
                                 <option value="{{ $office->id }}" {{ $filters['office_id'] === $office->id ? 'selected' : '' }}>{{ $office->nama_kantor }}</option>
@@ -205,39 +213,39 @@
 
         {{-- Summary Metrics Row (100% Real DB Data) --}}
         <section aria-label="Ringkasan statistik kehadiran" class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-            <div class="border rounded-xl p-4 vice-surface">
-                <div class="text-xs font-semibold" style="color: var(--text-muted);">Total Personil</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums mt-1" style="color: var(--text-primary);">{{ $summary['total_personil'] ?? 0 }}</div>
+            <div class="pusimpel-card p-4">
+                <div class="text-xs font-medium text-[#94a3b8]">Total Personil</div>
+                <div class="text-2xl font-extrabold font-mono tabular-nums text-white mt-1">{{ $summary['total_personil'] ?? 0 }}</div>
             </div>
-            <div class="border rounded-xl p-4 vice-surface">
-                <div class="text-xs font-semibold" style="color: var(--text-muted);">Personil Tercatat Hadir</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums mt-1" style="color: var(--accent-teal);">{{ $summary['personil_hadir'] ?? 0 }}</div>
+            <div class="pusimpel-card p-4">
+                <div class="text-xs font-medium text-[#94a3b8]">Personil Tercatat Hadir</div>
+                <div class="text-2xl font-extrabold font-mono tabular-nums text-[#38bdf8] mt-1">{{ $summary['personil_hadir'] ?? 0 }}</div>
             </div>
-            <div class="border rounded-xl p-4 vice-surface">
-                <div class="text-xs font-semibold" style="color: var(--text-muted);">Masuk Tepat Waktu</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums mt-1" style="color: var(--badge-em-fg);">{{ $summary['total_tepat_waktu'] ?? 0 }}</div>
+            <div class="pusimpel-card p-4">
+                <div class="text-xs font-medium text-[#94a3b8]">Masuk Tepat Waktu</div>
+                <div class="text-2xl font-extrabold font-mono tabular-nums text-[#6ee7b7] mt-1">{{ $summary['total_tepat_waktu'] ?? 0 }}</div>
             </div>
-            <div class="border rounded-xl p-4 vice-surface">
-                <div class="text-xs font-semibold" style="color: var(--text-muted);">Masuk Terlambat</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums mt-1" style="color: var(--badge-am-fg);">{{ $summary['total_terlambat'] ?? 0 }}</div>
+            <div class="pusimpel-card p-4">
+                <div class="text-xs font-medium text-[#94a3b8]">Masuk Terlambat</div>
+                <div class="text-2xl font-extrabold font-mono tabular-nums text-[#fcd34d] mt-1">{{ $summary['total_terlambat'] ?? 0 }}</div>
             </div>
-            <div class="col-span-2 lg:col-span-1 border rounded-xl p-4 vice-surface">
-                <div class="text-xs font-semibold" style="color: var(--text-muted);">Total Log Presensi</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums mt-1" style="color: var(--text-primary);">{{ $summary['total_log'] ?? 0 }}</div>
-                <div class="text-xs mt-0.5 font-mono" style="color: var(--text-secondary);">
+            <div class="col-span-2 lg:col-span-1 pusimpel-card p-4">
+                <div class="text-xs font-medium text-[#94a3b8]">Total Log Presensi</div>
+                <div class="text-2xl font-extrabold font-mono tabular-nums text-white mt-1">{{ $summary['total_log'] ?? 0 }}</div>
+                <div class="text-xs text-[#cbd5e1] mt-0.5 font-mono">
                     Disetujui: {{ $summary['total_approved'] ?? 0 }} · Ditolak: {{ $summary['total_rejected'] ?? 0 }}
                 </div>
             </div>
         </section>
 
         {{-- View Mode Tabs --}}
-        <div class="no-print flex items-center gap-2 border-b pb-3" style="border-color: var(--border-subtle);" role="tablist" aria-label="Tampilan data rekap">
+        <div class="no-print flex flex-wrap items-center gap-2 pb-1" role="tablist" aria-label="Tampilan data rekap">
             <button type="button"
                     id="tabSummaryBtn"
                     role="tab"
                     aria-selected="true"
                     aria-controls="panelSummary"
-                    class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-bold transition-colors vice-btn-coral">
+                    class="pill-btn min-h-[44px] active">
                 Ringkasan Per Personil ({{ $rows->count() }})
             </button>
             <button type="button"
@@ -245,7 +253,7 @@
                     role="tab"
                     aria-selected="false"
                     aria-controls="panelLogs"
-                    class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors vice-btn-ghost">
+                    class="pill-btn min-h-[44px]">
                 Rincian Log Harian ({{ $dailyLogs->count() }})
             </button>
         </div>
@@ -253,13 +261,13 @@
         {{-- PANEL 1: Ringkasan Per Personil --}}
         <section id="panelSummary" role="tabpanel" aria-labelledby="tabSummaryBtn">
             @if ($rows->isEmpty())
-                <div class="border rounded-2xl p-8 text-center space-y-3 vice-surface">
-                    <p class="text-base font-bold" style="color: var(--text-primary);">Tidak ada data personil yang sesuai dengan filter.</p>
-                    <p class="text-sm" style="color: var(--text-secondary);">Coba ubah kata kunci pencarian, pilihan bidang, atau rentang tanggal.</p>
+                <div class="no-result-box space-y-3">
+                    <p class="text-base font-bold text-white">Tidak ada data personil yang sesuai dengan filter.</p>
+                    <p class="text-sm text-[#94a3b8]">Coba ubah kata kunci pencarian, pilihan bidang, atau rentang tanggal.</p>
                     @if ($hasActiveFilter)
                         <div>
                             <a href="{{ route($currentRouteName) }}"
-                               class="inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-xl text-sm font-bold vice-btn-coral">
+                               class="inline-flex items-center justify-center min-h-[44px] px-5 py-2 rounded-full text-sm pusimpel-btn-primary">
                                 Reset Semua Filter
                             </a>
                         </div>
@@ -267,11 +275,11 @@
                 </div>
             @else
                 {{-- Desktop Table --}}
-                <div class="hidden lg:block border rounded-2xl overflow-hidden vice-surface">
+                <div class="hidden lg:block pusimpel-card overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="border-b text-xs font-bold vice-surface-alt" style="color: var(--text-primary);">
+                                <tr class="border-b border-white/15 bg-white/5 text-xs font-bold text-[#e2e8f0]">
                                     <th class="py-3.5 px-4">No</th>
                                     <th class="py-3.5 px-4">NIK / NUP</th>
                                     <th class="py-3.5 px-4">Nama &amp; Unit Kerja</th>
@@ -284,41 +292,42 @@
                                     <th class="py-3.5 px-4 text-right no-print">Rincian</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y text-sm" style="border-color: var(--border-subtle);">
+                            <tbody class="divide-y divide-white/10 text-sm">
                                 @foreach ($rows as $idx => $row)
-                                    <tr class="vice-table-row transition-colors" style="border-color: var(--border-subtle);">
-                                        <td class="py-3.5 px-4 font-mono text-xs tabular-nums" style="color: var(--text-muted);">{{ $idx + 1 }}</td>
-                                        <td class="py-3.5 px-4 font-mono text-xs font-semibold whitespace-nowrap" style="color: var(--text-primary);">{{ $row['nik'] }}</td>
+                                    @php
+                                        $badgeClass = match ($row['status_label']) {
+                                            'Pegawai Tetap' => 'badge-blue',
+                                            'Direksi' => 'badge-purple',
+                                            'Capeg' => 'badge-cyan',
+                                            'Honor' => 'badge-amber',
+                                            'PKWT' => 'badge-em',
+                                            default => 'badge-purple',
+                                        };
+                                    @endphp
+                                    <tr class="pusimpel-table-row transition-colors">
+                                        <td class="py-3.5 px-4 font-mono text-xs text-[#94a3b8] tabular-nums">{{ $idx + 1 }}</td>
+                                        <td class="py-3.5 px-4 font-mono text-xs font-semibold text-[#e2e8f0] whitespace-nowrap">{{ $row['nik'] }}</td>
                                         <td class="py-3.5 px-4">
-                                            <div class="font-bold" style="color: var(--text-primary);">{{ $row['name'] }}</div>
-                                            <div class="text-xs" style="color: var(--text-secondary);">{{ $row['department'] }} · {{ $row['position'] }}</div>
+                                            <div class="font-semibold text-white">{{ $row['name'] }}</div>
+                                            <div class="text-xs text-[#94a3b8]">{{ $row['department'] }} · {{ $row['position'] }}</div>
                                         </td>
                                         <td class="py-3.5 px-4 whitespace-nowrap">
-                                            @php
-                                                $badgeClass = match ($row['status_label']) {
-                                                    'Pegawai Tetap' => 'vice-badge-cr',
-                                                    'Capeg' => 'vice-badge-tl',
-                                                    'Honor' => 'vice-badge-am',
-                                                    'PKWT' => 'vice-badge-em',
-                                                    default => 'vice-surface-alt',
-                                                };
-                                            @endphp
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border {{ $badgeClass }}">
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border {{ $badgeClass }}">
                                                 {{ $row['status_label'] }}
                                             </span>
                                         </td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-bold tabular-nums" style="color: var(--text-primary);">{{ $row['hari_hadir'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono tabular-nums" style="color: var(--text-primary);">{{ $row['masuk_count'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono tabular-nums" style="color: var(--text-primary);">{{ $row['pulang_count'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-semibold tabular-nums" style="color: var(--badge-em-fg);">{{ $row['tepat_waktu_count'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-semibold tabular-nums" style="color: {{ $row['terlambat_count'] > 0 ? 'var(--badge-am-fg)' : 'var(--text-muted)' }};">
+                                        <td class="py-3.5 px-4 text-center font-mono font-bold tabular-nums text-white">{{ $row['hari_hadir'] }}</td>
+                                        <td class="py-3.5 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['masuk_count'] }}</td>
+                                        <td class="py-3.5 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['pulang_count'] }}</td>
+                                        <td class="py-3.5 px-4 text-center font-mono font-semibold tabular-nums text-[#6ee7b7]">{{ $row['tepat_waktu_count'] }}</td>
+                                        <td class="py-3.5 px-4 text-center font-mono font-semibold tabular-nums {{ $row['terlambat_count'] > 0 ? 'text-[#fcd34d]' : 'text-[#94a3b8]' }}">
                                             {{ $row['terlambat_count'] }}
                                         </td>
                                         <td class="py-3.5 px-4 text-right no-print">
                                             <button type="button"
                                                     data-detail-nik="{{ $row['nik'] }}"
                                                     data-detail-name="{{ $row['name'] }}"
-                                                    class="detail-trigger min-h-[38px] px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors vice-btn-ghost">
+                                                    class="detail-trigger min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
                                                 Lihat Log ({{ $row['total_log'] }})
                                             </button>
                                         </td>
@@ -332,36 +341,36 @@
                 {{-- Tablet & Mobile Cards --}}
                 <div class="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach ($rows as $row)
-                        <article class="border rounded-2xl p-4 space-y-3 vice-surface">
+                        <article class="pusimpel-card p-4 space-y-3">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
-                                    <h3 class="text-sm font-bold truncate" style="color: var(--text-primary);">{{ $row['name'] }}</h3>
-                                    <p class="text-xs font-mono" style="color: var(--text-muted);">{{ $row['nik'] }}</p>
+                                    <h3 class="text-sm font-bold text-white truncate">{{ $row['name'] }}</h3>
+                                    <p class="text-xs font-mono text-[#94a3b8]">{{ $row['nik'] }}</p>
                                 </div>
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border shrink-0 vice-badge-tl">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 badge-cyan">
                                     {{ $row['status_label'] }}
                                 </span>
                             </div>
 
-                            <div class="text-xs space-y-0.5" style="color: var(--text-secondary);">
-                                <div class="truncate"><strong style="color: var(--text-primary);">Bidang:</strong> {{ $row['department'] }}</div>
-                                <div class="truncate"><strong style="color: var(--text-primary);">Jabatan:</strong> {{ $row['position'] }}</div>
+                            <div class="text-xs text-[#cbd5e1] space-y-0.5">
+                                <div class="truncate"><strong class="text-white">Bidang:</strong> {{ $row['department'] }}</div>
+                                <div class="truncate"><strong class="text-white">Jabatan:</strong> {{ $row['position'] }}</div>
                             </div>
 
-                            <div class="grid grid-cols-4 gap-2 pt-2 border-t text-center" style="border-color: var(--border-subtle);">
-                                <div class="rounded-lg p-2 border vice-surface-alt">
-                                    <div class="text-[11px]" style="color: var(--text-muted);">Hadir</div>
-                                    <div class="text-sm font-bold font-mono" style="color: var(--text-primary);">{{ $row['hari_hadir'] }}</div>
+                            <div class="grid grid-cols-4 gap-2 pt-2 border-t border-white/10 text-center">
+                                <div class="rounded-xl p-2 pusimpel-card-alt">
+                                    <div class="text-[11px] text-[#94a3b8]">Hadir</div>
+                                    <div class="text-sm font-bold font-mono text-white">{{ $row['hari_hadir'] }}</div>
                                 </div>
-                                <div class="rounded-lg p-2 border vice-surface-alt">
-                                    <div class="text-[11px]" style="color: var(--text-muted);">Masuk</div>
-                                    <div class="text-sm font-bold font-mono" style="color: var(--text-primary);">{{ $row['masuk_count'] }}</div>
+                                <div class="rounded-xl p-2 pusimpel-card-alt">
+                                    <div class="text-[11px] text-[#94a3b8]">Masuk</div>
+                                    <div class="text-sm font-bold font-mono text-white">{{ $row['masuk_count'] }}</div>
                                 </div>
-                                <div class="rounded-lg p-2 border vice-badge-em">
+                                <div class="rounded-xl p-2 border badge-em">
                                     <div class="text-[11px]">Tepat</div>
                                     <div class="text-sm font-bold font-mono">{{ $row['tepat_waktu_count'] }}</div>
                                 </div>
-                                <div class="rounded-lg p-2 border vice-badge-am">
+                                <div class="rounded-xl p-2 border badge-amber">
                                     <div class="text-[11px]">Telat</div>
                                     <div class="text-sm font-bold font-mono">{{ $row['terlambat_count'] }}</div>
                                 </div>
@@ -370,7 +379,7 @@
                             <button type="button"
                                     data-detail-nik="{{ $row['nik'] }}"
                                     data-detail-name="{{ $row['name'] }}"
-                                    class="no-print detail-trigger w-full min-h-[44px] px-3 py-2 rounded-xl border text-xs font-bold transition-colors vice-btn-ghost">
+                                    class="no-print detail-trigger w-full min-h-[44px] px-4 py-2 rounded-full text-xs font-semibold pusimpel-btn-ghost">
                                 Lihat Rincian Log ({{ $row['total_log'] }})
                             </button>
                         </article>
@@ -382,16 +391,16 @@
         {{-- PANEL 2: Rincian Log Harian --}}
         <section id="panelLogs" role="tabpanel" aria-labelledby="tabLogsBtn" class="hidden">
             @if ($dailyLogs->isEmpty())
-                <div class="border rounded-2xl p-8 text-center space-y-2 vice-surface">
-                    <p class="text-base font-bold" style="color: var(--text-primary);">Belum ada log presensi pada periode ini.</p>
-                    <p class="text-sm" style="color: var(--text-secondary);">Rentang tanggal {{ $filters['start_date'] }} s/d {{ $filters['end_date'] }} belum memiliki catatan presensi untuk kategori ini.</p>
+                <div class="no-result-box space-y-2">
+                    <p class="text-base font-bold text-white">Belum ada log presensi pada periode ini.</p>
+                    <p class="text-sm text-[#94a3b8]">Rentang tanggal {{ $filters['start_date'] }} s/d {{ $filters['end_date'] }} belum memiliki catatan presensi untuk kategori ini.</p>
                 </div>
             @else
-                <div class="hidden lg:block border rounded-2xl overflow-hidden vice-surface">
+                <div class="hidden lg:block pusimpel-card overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="border-b text-xs font-bold vice-surface-alt" style="color: var(--text-primary);">
+                                <tr class="border-b border-white/15 bg-white/5 text-xs font-bold text-[#e2e8f0]">
                                     <th class="py-3.5 px-4">Tanggal &amp; Jam</th>
                                     <th class="py-3.5 px-4">NIK &amp; Nama</th>
                                     <th class="py-3.5 px-4">Status</th>
@@ -401,38 +410,38 @@
                                     <th class="py-3.5 px-4">Lokasi &amp; Catatan</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y text-sm" style="border-color: var(--border-subtle);">
+                            <tbody class="divide-y divide-white/10 text-sm">
                                 @foreach ($dailyLogs as $log)
-                                    <tr class="vice-table-row transition-colors" style="border-color: var(--border-subtle);">
+                                    <tr class="pusimpel-table-row transition-colors">
                                         <td class="py-3.5 px-4 whitespace-nowrap font-mono text-xs">
-                                            <div class="font-bold" style="color: var(--text-primary);">{{ $log['tanggal'] }}</div>
-                                            <div style="color: var(--text-muted);">{{ $log['waktu'] }} WIB</div>
+                                            <div class="font-bold text-white">{{ $log['tanggal'] }}</div>
+                                            <div class="text-[#94a3b8]">{{ $log['waktu'] }} WIB</div>
                                         </td>
                                         <td class="py-3.5 px-4">
-                                            <div class="font-bold" style="color: var(--text-primary);">{{ $log['name'] }}</div>
-                                            <div class="text-xs font-mono" style="color: var(--text-secondary);">{{ $log['nik'] }} · {{ $log['department'] }}</div>
+                                            <div class="font-semibold text-white">{{ $log['name'] }}</div>
+                                            <div class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }} · {{ $log['department'] }}</div>
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap text-xs font-bold" style="color: var(--text-primary);">
+                                        <td class="py-3.5 px-4 whitespace-nowrap text-xs font-bold text-[#e2e8f0]">
                                             {{ $log['status_label'] }}
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap text-xs font-semibold" style="color: var(--text-primary);">
+                                        <td class="py-3.5 px-4 whitespace-nowrap text-xs font-semibold text-white">
                                             {{ $log['slot'] }}
                                         </td>
                                         <td class="py-3.5 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border {{ $log['is_late'] ? 'vice-badge-am' : 'vice-badge-em' }}">
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
                                                 {{ $log['status'] }}
                                             </span>
                                         </td>
                                         <td class="py-3.5 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border
-                                                {{ $log['approval_status'] === 'approved' ? 'vice-badge-em' : ($log['approval_status'] === 'rejected' ? 'vice-badge-rs' : 'vice-badge-am') }}">
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border
+                                                {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
                                                 {{ $log['approval_label'] }}
                                             </span>
                                         </td>
-                                        <td class="py-3.5 px-4 text-xs max-w-xs" style="color: var(--text-secondary);">
-                                            <div class="font-semibold" style="color: var(--text-primary);">{{ $log['lokasi'] }} ({{ $log['radius_label'] }})</div>
+                                        <td class="py-3.5 px-4 text-xs text-[#cbd5e1] max-w-xs">
+                                            <div class="font-semibold text-white">{{ $log['lokasi'] }} ({{ $log['radius_label'] }})</div>
                                             @if ($log['catatan'] !== '')
-                                                <div class="mt-0.5 break-words">{{ $log['catatan'] }}</div>
+                                                <div class="mt-0.5 break-words text-[#94a3b8]">{{ $log['catatan'] }}</div>
                                             @endif
                                         </td>
                                     </tr>
@@ -444,27 +453,27 @@
 
                 <div class="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach ($dailyLogs as $log)
-                        <article class="border rounded-2xl p-4 space-y-2.5 vice-surface">
+                        <article class="pusimpel-card p-4 space-y-2.5">
                             <div class="flex items-start justify-between gap-2">
                                 <div>
-                                    <h3 class="text-sm font-bold" style="color: var(--text-primary);">{{ $log['name'] }}</h3>
-                                    <p class="text-xs font-mono" style="color: var(--text-muted);">{{ $log['nik'] }} · {{ $log['status_label'] }}</p>
+                                    <h3 class="text-sm font-bold text-white">{{ $log['name'] }}</h3>
+                                    <p class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }} · {{ $log['status_label'] }}</p>
                                 </div>
-                                <span class="text-xs font-mono font-bold" style="color: var(--text-primary);">{{ $log['tanggal'] }} {{ $log['waktu'] }}</span>
+                                <span class="text-xs font-mono font-bold text-[#38bdf8]">{{ $log['tanggal'] }} {{ $log['waktu'] }}</span>
                             </div>
                             <div class="flex flex-wrap gap-1.5">
-                                <span class="px-2 py-0.5 rounded border text-xs font-semibold vice-surface-alt" style="color: var(--text-primary);">{{ $log['slot'] }}</span>
-                                <span class="px-2 py-0.5 rounded border text-xs font-bold {{ $log['is_late'] ? 'vice-badge-am' : 'vice-badge-em' }}">
+                                <span class="px-2.5 py-0.5 rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">{{ $log['slot'] }}</span>
+                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
                                     {{ $log['status'] }}
                                 </span>
-                                <span class="px-2 py-0.5 rounded border text-xs font-bold {{ $log['approval_status'] === 'approved' ? 'vice-badge-em' : ($log['approval_status'] === 'rejected' ? 'vice-badge-rs' : 'vice-badge-am') }}">
+                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
                                     {{ $log['approval_label'] }}
                                 </span>
                             </div>
-                            <div class="text-xs" style="color: var(--text-secondary);">
-                                <div><strong style="color: var(--text-primary);">Lokasi:</strong> {{ $log['lokasi'] }}</div>
+                            <div class="text-xs text-[#cbd5e1]">
+                                <div><strong class="text-white">Lokasi:</strong> {{ $log['lokasi'] }}</div>
                                 @if ($log['catatan'] !== '')
-                                    <div class="mt-0.5 break-words">{{ $log['catatan'] }}</div>
+                                    <div class="mt-0.5 break-words text-[#94a3b8]">{{ $log['catatan'] }}</div>
                                 @endif
                             </div>
                         </article>
@@ -482,17 +491,16 @@
      aria-labelledby="detailModalTitle"
      class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/75 p-4 sm:p-6">
     <div class="min-h-full flex items-center justify-center">
-        <div class="border rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden vice-surface">
-            <div class="h-1 vice-horizon-bar w-full" aria-hidden="true"></div>
-            <div class="px-5 py-4 border-b flex items-center justify-between gap-4" style="border-color: var(--border-subtle);">
+        <div class="pusimpel-card w-full max-w-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/15 flex items-center justify-between gap-4">
                 <div>
-                    <h2 id="detailModalTitle" class="font-vice-display text-2xl font-extrabold uppercase tracking-wide" style="color: var(--text-primary);">Rincian Log Presensi</h2>
-                    <p id="detailModalSubtitle" class="text-xs font-mono mt-0.5" style="color: var(--text-muted);"></p>
+                    <h2 id="detailModalTitle" class="font-heading text-lg font-bold text-white">Rincian Log Presensi</h2>
+                    <p id="detailModalSubtitle" class="text-xs font-mono text-[#94a3b8] mt-0.5"></p>
                 </div>
                 <button type="button"
                         id="closeDetailModalBtn"
                         aria-label="Tutup rincian log presensi"
-                        class="min-w-[44px] min-h-[44px] rounded-xl border flex items-center justify-center vice-btn-ghost">
+                        class="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center pusimpel-btn-ghost">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
@@ -568,13 +576,13 @@
             tabLogsBtn.setAttribute('aria-selected', isSummary ? 'false' : 'true');
 
             if (isSummary) {
-                tabSummaryBtn.className = 'min-h-[44px] px-4 py-2 rounded-xl text-sm font-bold transition-colors vice-btn-coral';
-                tabLogsBtn.className = 'min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors vice-btn-ghost';
+                tabSummaryBtn.className = 'pill-btn min-h-[44px] active';
+                tabLogsBtn.className = 'pill-btn min-h-[44px]';
                 panelSummary.classList.remove('hidden');
                 panelLogs.classList.add('hidden');
             } else {
-                tabLogsBtn.className = 'min-h-[44px] px-4 py-2 rounded-xl text-sm font-bold transition-colors vice-btn-coral';
-                tabSummaryBtn.className = 'min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold border transition-colors vice-btn-ghost';
+                tabLogsBtn.className = 'pill-btn min-h-[44px] active';
+                tabSummaryBtn.className = 'pill-btn min-h-[44px]';
                 panelLogs.classList.remove('hidden');
                 panelSummary.classList.add('hidden');
             }
@@ -615,7 +623,7 @@
 
             modalTitle.textContent = name;
             modalSubtitle.textContent = `NIK: ${nik} · Periode ${startInput ? startInput.value : ''} s/d ${endInput ? endInput.value : ''}`;
-            modalBody.innerHTML = '<div class="py-8 text-center text-sm font-semibold" style="color: var(--text-muted);">Memuat rincian log presensi...</div>';
+            modalBody.innerHTML = '<div class="py-8 text-center text-sm font-semibold text-[#94a3b8]">Memuat rincian log presensi...</div>';
             modal.classList.remove('hidden');
             if (closeBtn) {
                 closeBtn.focus();
@@ -639,37 +647,37 @@
                 const logs = json.data.logs || [];
                 if (logs.length === 0) {
                     modalBody.innerHTML = `
-                        <div class="rounded-xl border p-6 text-center space-y-1 vice-surface-alt">
-                            <p class="font-bold" style="color: var(--text-primary);">Belum ada catatan presensi</p>
-                            <p class="text-xs" style="color: var(--text-secondary);">Tidak ditemukan log presensi untuk personil ini pada rentang tanggal yang dipilih.</p>
+                        <div class="no-result-box space-y-1">
+                            <p class="font-bold text-white">Belum ada catatan presensi</p>
+                            <p class="text-xs text-[#94a3b8]">Tidak ditemukan log presensi untuk personil ini pada rentang tanggal yang dipilih.</p>
                         </div>
                     `;
                     return;
                 }
 
                 modalBody.innerHTML = logs.map(function (item) {
-                    const lateClass = item.is_late ? 'vice-badge-am' : 'vice-badge-em';
+                    const lateClass = item.is_late ? 'badge-amber' : 'badge-em';
                     const appClass = item.approval_status === 'approved'
-                        ? 'vice-badge-em'
-                        : (item.approval_status === 'rejected' ? 'vice-badge-rs' : 'vice-badge-am');
+                        ? 'badge-em'
+                        : (item.approval_status === 'rejected' ? 'badge-rose' : 'badge-amber');
                     const notesHtml = item.catatan
-                        ? `<p class="text-xs mt-1" style="color: var(--text-secondary);">${escapeHtml(item.catatan)}</p>`
+                        ? `<p class="text-xs text-[#94a3b8] mt-1">${escapeHtml(item.catatan)}</p>`
                         : '';
 
                     return `
-                        <div class="rounded-xl border p-3.5 space-y-2 vice-surface-alt">
+                        <div class="rounded-2xl border p-3.5 space-y-2 pusimpel-card-alt">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="font-mono text-xs font-bold" style="color: var(--text-primary);">
+                                <div class="font-mono text-xs font-bold text-white">
                                     ${escapeHtml(item.tanggal)} · ${escapeHtml(item.waktu)} WIB
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1.5">
-                                    <span class="px-2 py-0.5 rounded border text-xs font-semibold vice-surface">${escapeHtml(item.slot)}</span>
-                                    <span class="px-2 py-0.5 rounded border text-xs font-bold ${lateClass}">${escapeHtml(item.status)}</span>
-                                    <span class="px-2 py-0.5 rounded border text-xs font-bold ${appClass}">${escapeHtml(item.approval_label)}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">${escapeHtml(item.slot)}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold ${lateClass}">${escapeHtml(item.status)}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold ${appClass}">${escapeHtml(item.approval_label)}</span>
                                 </div>
                             </div>
-                            <div class="text-xs" style="color: var(--text-secondary);">
-                                <strong style="color: var(--text-primary);">Lokasi:</strong> ${escapeHtml(item.lokasi)} (${escapeHtml(item.radius_label)})
+                            <div class="text-xs text-[#cbd5e1]">
+                                <strong class="text-white">Lokasi:</strong> ${escapeHtml(item.lokasi)} (${escapeHtml(item.radius_label)})
                             </div>
                             ${notesHtml}
                         </div>
@@ -677,10 +685,10 @@
                 }).join('');
             } catch (err) {
                 modalBody.innerHTML = `
-                    <div role="alert" class="rounded-xl border p-4 text-sm space-y-2 vice-badge-rs">
+                    <div role="alert" class="rounded-2xl border p-4 text-sm space-y-2 badge-rose">
                         <p class="font-bold">Gagal memuat rincian log</p>
                         <p>${escapeHtml(err.message || 'Terjadi kesalahan saat menghubungi server.')}</p>
-                        <button type="button" id="retryDetailBtn" class="min-h-[40px] px-3 py-1.5 rounded-lg text-xs font-bold vice-btn-coral">
+                        <button type="button" id="retryDetailBtn" class="min-h-[40px] px-4 py-1.5 rounded-full text-xs pusimpel-btn-primary">
                             Coba Lagi
                         </button>
                     </div>

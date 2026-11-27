@@ -6,110 +6,28 @@
 @source '../js/**/*.js';
 
 @theme {
-    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-display: 'Barlow Condensed', 'Plus Jakarta Sans', ui-sans-serif, sans-serif;
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-heading: 'Montserrat', 'Poppins', ui-sans-serif, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-:root,
-[data-theme='vice-night'] {
-    color-scheme: dark;
-    --bg-canvas: #0d0a1a;
-    --bg-surface: #16112b;
-    --bg-surface-alt: #1f183b;
-    --bg-hover: #271e49;
-    --border-subtle: #34295e;
-    --border-strong: #4c3d82;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #c4b5fd;
-
-    --accent-coral: #be185d;
-    --accent-coral-hover: #9d174d;
-    --accent-coral-border: #f43f5e;
-    --accent-coral-fg: #ffffff;
-
-    --accent-teal: #2dd4bf;
-    --accent-teal-hover: #14b8a6;
-    --accent-teal-border: #2dd4bf;
-    --accent-teal-fg: #0d0a1a;
-
-    --accent-gold: #fbbf24;
-    --focus-ring: #fbbf24;
-
-    --badge-em-bg: #064e3b;
-    --badge-em-fg: #6ee7b7;
-    --badge-em-bd: #059669;
-
-    --badge-am-bg: #451a03;
-    --badge-am-fg: #fcd34d;
-    --badge-am-bd: #d97706;
-
-    --badge-rs-bg: #4c0519;
-    --badge-rs-fg: #fda4af;
-    --badge-rs-bd: #e11d48;
-
-    --badge-tl-bg: #134e4a;
-    --badge-tl-fg: #5eead4;
-    --badge-tl-bd: #0d9488;
-
-    --badge-cr-bg: #4c0519;
-    --badge-cr-fg: #fda4af;
-    --badge-cr-bd: #be185d;
-}
-
-[data-theme='vice-day'] {
-    color-scheme: light;
-    --bg-canvas: #fffbf7;
-    --bg-surface: #ffffff;
-    --bg-surface-alt: #f5efe6;
-    --bg-hover: #ede4d7;
-    --border-subtle: #ded4c6;
-    --border-strong: #c2b39e;
-    --text-primary: #140f2d;
-    --text-secondary: #473e66;
-    --text-muted: #5b517a;
-
-    --accent-coral: #be185d;
-    --accent-coral-hover: #9d174d;
-    --accent-coral-border: #be185d;
-    --accent-coral-fg: #ffffff;
-
-    --accent-teal: #0f766e;
-    --accent-teal-hover: #115e59;
-    --accent-teal-border: #0f766e;
-    --accent-teal-fg: #ffffff;
-
-    --accent-gold: #b45309;
-    --focus-ring: #be185d;
-
-    --badge-em-bg: #ecfdf5;
-    --badge-em-fg: #065f46;
-    --badge-em-bd: #a7f3d0;
-
-    --badge-am-bg: #fffbeb;
-    --badge-am-fg: #92400e;
-    --badge-am-bd: #fde68a;
-
-    --badge-rs-bg: #fff1f2;
-    --badge-rs-fg: #9f1239;
-    --badge-rs-bd: #fecdd3;
-
-    --badge-tl-bg: #f0fdfa;
-    --badge-tl-fg: #115e59;
-    --badge-tl-bd: #99f6e4;
-
-    --badge-cr-bg: #fdf2f8;
-    --badge-cr-fg: #9d174d;
-    --badge-cr-bd: #fbcfe8;
 }
 
 @layer base {
     html {
+        color-scheme: dark;
         font-family: var(--font-sans);
-        color: var(--text-primary);
-        background-color: var(--bg-canvas);
+        color: #f1f5f9;
+        background-color: #070c16;
         scroll-behavior: smooth;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: radial-gradient(circle at 50% 10%, #172438 0%, #0c1422 55%, #070c16 100%);
+        background-attachment: fixed;
+        color: #f1f5f9;
+        min-height: 100vh;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
     }
 
     a[href],
@@ -137,100 +55,342 @@
     select:focus-visible,
     textarea:focus-visible,
     [tabindex]:focus-visible {
-        outline: 2px solid var(--focus-ring);
+        outline: 2px solid #38bdf8;
         outline-offset: 2px;
     }
 }
 
-.vice-horizon-bar {
-    background: linear-gradient(90deg, #be185d 0%, #f59e0b 52%, #0ea5a4 100%);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
 }
 
-.font-vice-display {
-    font-family: var(--font-display);
+::-webkit-scrollbar-track {
+    background: #0c1422;
 }
 
-.vice-surface {
-    background-color: var(--bg-surface);
-    border-color: var(--border-subtle);
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 10px;
 }
 
-.vice-surface-alt {
-    background-color: var(--bg-surface-alt);
-    border-color: var(--border-subtle);
+::-webkit-scrollbar-thumb:hover {
+    background: #334155;
 }
 
-.vice-table-row:hover {
-    background-color: var(--bg-hover);
+/* ==========================================================================
+   DASHBOARD APLIKASI PUSIMPEL - KOMPONEN PORTAL
+   ========================================================================== */
+
+.pusimpel-header {
+    background: rgba(12, 20, 34, 0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.vice-input {
-    background-color: var(--bg-surface-alt);
-    border-color: var(--border-strong);
-    color: var(--text-primary);
+.pusimpel-card {
+    background: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
 }
 
-.vice-input::placeholder {
-    color: var(--text-muted);
-    opacity: 0.85;
+.pusimpel-card-alt {
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.vice-btn-coral {
-    background-color: var(--accent-coral);
-    color: var(--accent-coral-fg);
+.profile-container {
+    width: 76px;
+    height: 76px;
+    border-radius: 20px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.vice-btn-coral:hover:not(:disabled) {
-    background-color: var(--accent-coral-hover);
+.greeting-text {
+    font-family: 'Montserrat', sans-serif;
+    line-height: 1.25;
 }
 
-.vice-btn-teal {
-    background-color: var(--accent-teal);
-    color: var(--accent-teal-fg);
+.user-name-gradient {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #e0f2fe;
+    background: linear-gradient(135deg, #e0f2fe 0%, #38bdf8 50%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
 }
 
-.vice-btn-teal:hover:not(:disabled) {
-    background-color: var(--accent-teal-hover);
+.welcome-subtext {
+    color: #cbd5e1;
+    line-height: 1.6;
 }
 
-.vice-btn-ghost {
-    background-color: var(--bg-surface-alt);
-    border-color: var(--border-strong);
-    color: var(--text-primary);
+.divider-glass {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
 }
 
-.vice-btn-ghost:hover:not(:disabled) {
-    background-color: var(--bg-hover);
+.counter-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: #e2e8f0;
 }
 
-.vice-badge-em {
-    background-color: var(--badge-em-bg);
-    color: var(--badge-em-fg);
-    border-color: var(--badge-em-bd);
+/* Input & Search Styling */
+.pusimpel-input {
+    background: rgba(30, 41, 59, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.vice-badge-am {
-    background-color: var(--badge-am-bg);
-    color: var(--badge-am-fg);
-    border-color: var(--badge-am-bd);
+.pusimpel-input:focus {
+    border-color: #38bdf8;
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
 }
 
-.vice-badge-rs {
-    background-color: var(--badge-rs-bg);
-    color: var(--badge-rs-fg);
-    border-color: var(--badge-rs-bd);
+.pusimpel-input::placeholder {
+    color: #94a3b8;
 }
 
-.vice-badge-tl {
-    background-color: var(--badge-tl-bg);
-    color: var(--badge-tl-fg);
-    border-color: var(--badge-tl-bd);
+.pusimpel-select option {
+    background-color: #0c1422;
+    color: #f1f5f9;
 }
 
-.vice-badge-cr {
-    background-color: var(--badge-cr-bg);
-    color: var(--badge-cr-fg);
-    border-color: var(--badge-cr-bd);
+/* Filter Pills */
+.filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pill-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #cbd5e1;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.pill-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pill-btn.active {
+    background: #38bdf8;
+    color: #070c16;
+    border-color: #38bdf8;
+    font-weight: 700;
+}
+
+.category-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dot-keuangan {
+    background-color: #10b981;
+}
+
+.dot-pelanggan {
+    background-color: #3b82f6;
+}
+
+.dot-teknik {
+    background-color: #06b6d4;
+}
+
+.dot-kepegawaian {
+    background-color: #a855f7;
+}
+
+.dot-manajemen {
+    background-color: #f59e0b;
+}
+
+.dot-khusus {
+    background-color: #f43f5e;
+}
+
+/* Primary Buttons */
+.pusimpel-btn-primary {
+    background: #38bdf8;
+    color: #070c16;
+    border: 1px solid #38bdf8;
+    font-weight: 700;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.pusimpel-btn-primary:hover:not(:disabled) {
+    background: #7dd3fc;
+}
+
+.pusimpel-btn-ghost {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #f1f5f9;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.pusimpel-btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.32);
+}
+
+/* Icon Tiles & Category Cards (Pusimpel Style) */
+.icon-tile {
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+}
+
+.icon-tile::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%);
+    border-radius: 18px 18px 0 0;
+    pointer-events: none;
+}
+
+.cat-keuangan {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+.cat-pelanggan {
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+}
+
+.cat-teknik {
+    background: linear-gradient(135deg, #0f766e 0%, #06b6d4 100%);
+}
+
+.cat-kepegawaian {
+    background: linear-gradient(135deg, #581c87 0%, #8b5cf6 100%);
+}
+
+.cat-manajemen {
+    background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
+}
+
+.cat-khusus {
+    background: linear-gradient(135deg, #be123c 0%, #f43f5e 100%);
+}
+
+.portal-action-card {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.14);
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.portal-action-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55), transparent);
+    pointer-events: none;
+}
+
+.portal-action-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.45);
+}
+
+.no-result-box {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 20px;
+    color: #cbd5e1;
+}
+
+.pusimpel-table-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Status Badges (Accessible Dark Portal Contrast) */
+.badge-em {
+    background: #064e3b;
+    color: #6ee7b7;
+    border-color: #059669;
+}
+
+.badge-blue {
+    background: #1e3a8a;
+    color: #bfdbfe;
+    border-color: #3b82f6;
+}
+
+.badge-purple {
+    background: #3b0764;
+    color: #e9d5ff;
+    border-color: #a855f7;
+}
+
+.badge-cyan {
+    background: #164e63;
+    color: #a5f3fc;
+    border-color: #06b6d4;
+}
+
+.badge-amber {
+    background: #451a03;
+    color: #fcd34d;
+    border-color: #d97706;
+}
+
+.badge-rose {
+    background: #4c0519;
+    color: #fda4af;
+    border-color: #e11d48;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -255,10 +415,11 @@
         color: #000000 !important;
     }
 
-    .vice-surface,
-    .vice-surface-alt {
+    .pusimpel-card,
+    .pusimpel-card-alt {
         background: #ffffff !important;
         border-color: #cccccc !important;
+        box-shadow: none !important;
         color: #000000 !important;
     }
 }
