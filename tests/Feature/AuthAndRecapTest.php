@@ -100,6 +100,7 @@ class AuthAndRecapTest extends TestCase
         $response->assertSee('DINAS LUAR KOTA');
         $response->assertSee('Hadir Penuh');
         $response->assertSee('Cetak PDF');
+        $response->assertDontSee('Ekspor CSV');
         $response->assertDontSee('Capeg Satu');
         $response->assertDontSee('Kontrak Satu');
     }
