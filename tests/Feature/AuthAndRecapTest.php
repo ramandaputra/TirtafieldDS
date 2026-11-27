@@ -23,7 +23,7 @@ class AuthAndRecapTest extends TestCase
         $response = $this->get('/login');
 
         $response->assertStatus(200);
-        $response->assertSee('Masuk ke Tirtafield DS');
+        $response->assertSeeText('Masuk ke Tirtafield DS');
         $response->assertSee('NIK / NIP atau Email');
         $response->assertSee('PIN atau Kata Sandi');
     }
