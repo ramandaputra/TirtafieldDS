@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Office;
+use App\Models\Presensi;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -516,6 +517,7 @@ class AttendanceRecapService
 
         $today = Carbon::now('Asia/Jakarta')->toDateString();
         $holidays = $this->buildHolidaysForRange($startDate, $endDate);
+        $tirtafieldMap = $this->loadTirtafieldPresensiMap($niks, $startDate, $endDate);
 
         if ($fullCalendar) {
             $keys = [];
@@ -530,7 +532,8 @@ class AttendanceRecapService
             $keys = array_values(array_unique(array_merge(
                 array_keys($table1Map),
                 array_keys($midScanMap),
-                array_keys($attendantMap)
+                array_keys($attendantMap),
+                array_keys($tirtafieldMap)
             )));
         }
 
@@ -546,6 +549,7 @@ class AttendanceRecapService
             $t1 = $table1Map[$key] ?? null;
             $rawMidScans = array_values(array_unique($midScanMap[$key] ?? []));
             $att = $attendantMap[$key] ?? null;
+            $tf = $tirtafieldMap[$key] ?? null;
 
             $carbonDate = Carbon::parse($dateKey);
             $hariIndo = $this->hariIndonesia($carbonDate->format('l'));
@@ -558,7 +562,21 @@ class AttendanceRecapService
             $scan1 = $t1['inpresent'] ?? '-';
             $scan4 = $t1['outpresent'] ?? '-';
 
+            if ($scan1 === '-' && $tf !== null && $tf['masuk'] !== '-') {
+                $scan1 = $tf['masuk'];
+            }
+            if ($scan4 === '-' && $tf !== null && $tf['pulang'] !== '-') {
+                $scan4 = $tf['pulang'];
+            }
+
             [$scan2, $scan3, $isShift] = $this->resolveMiddayScans($scan1, $scan4, $rawMidScans, $isWeekend);
+
+            if ($scan2 === '-' && $tf !== null && $tf['istirahatKeluar'] !== '-') {
+                $scan2 = $tf['istirahatKeluar'];
+            }
+            if ($scan3 === '-' && $tf !== null && $tf['istirahatMasuk'] !== '-') {
+                $scan3 = $tf['istirahatMasuk'];
+            }
 
             $hasTable1Scan = ($scan1 !== '-' || $scan4 !== '-');
             $hasScan = ($hasTable1Scan || $scan2 !== '-' || $scan3 !== '-');
@@ -604,6 +622,16 @@ class AttendanceRecapService
                 $notes = array_merge($notes, $fpNotes);
             }
 
+            if ($tf !== null) {
+                $usedTfMasuk = ($t1 === null || $t1['inpresent'] === '-') && $tf['masuk'] !== '-';
+                if ($usedTfMasuk && $tf['is_late'] && ! $isLate && ! $isHoliday) {
+                    $isLate = true;
+                    $scan1Late = true;
+                    $fpNotes[] = 'Telat Masuk Pagi';
+                }
+                $notes = array_merge($notes, $tf['notes']);
+            }
+
             if ($hasReason) {
                 if ($hasTable1Scan && $reasonText !== '') {
                     $notes[] = $reasonText.($attNotes !== '' ? ': '.$attNotes : '');
@@ -617,15 +645,22 @@ class AttendanceRecapService
             }
 
             $sources = [];
-            if ($hasTable1Scan || $scan2 !== '-' || $scan3 !== '-') {
+            if (($t1 !== null && ($t1['inpresent'] !== '-' || $t1['outpresent'] !== '-')) || ! empty($rawMidScans)) {
                 $sources[] = 'Attendance';
             }
             if ($hasReason) {
                 $sources[] = 'Attendant';
             }
+            if ($tf !== null) {
+                $sources[] = 'Tirtafield';
+            }
             if (empty($sources)) {
                 $sources[] = $t1 !== null ? 'Attendant' : 'Attendance';
             }
+
+            $lokasi = ($tf !== null && ! empty($tf['locations']))
+                ? implode(', ', array_unique($tf['locations']))
+                : ($hasScan ? 'Mesin Fingerprint' : '-');
 
             $records->push([
                 'nik' => $person['nik'],
@@ -650,8 +685,8 @@ class AttendanceRecapService
                 'status_kehadiran' => $statusKehadiran,
                 'is_late' => $isLate,
                 'ketepatan' => $hasScan ? ($isLate ? 'Terlambat' : 'Tepat Waktu') : ($hasReason ? $statusKehadiran : '-'),
-                'fp_notes' => implode(', ', $fpNotes),
-                'lokasi' => $hasScan ? 'Mesin Fingerprint' : '-',
+                'fp_notes' => implode(', ', array_values(array_unique($fpNotes))),
+                'lokasi' => $lokasi,
                 'catatan' => implode(' · ', array_values(array_unique(array_filter($notes)))),
                 'sumber' => implode(' + ', $sources),
             ]);
@@ -716,10 +751,96 @@ class AttendanceRecapService
                 }
             }
         } catch (\Throwable) {
-            return 0;
+            // Tetap hitung dari Tirtafield bila koneksi kepegawaian tidak dapat dijangkau
+        }
+
+        $niks = $personnel->pluck('nik')->filter()->unique()->values()->all();
+        if (! empty($niks) && Schema::hasTable('presensi')) {
+            $tfRows = Presensi::query()
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->where(function ($query) use ($niks): void {
+                    $query->whereIn('nik', $niks)->orWhereIn('pgw_nup', $niks);
+                })
+                ->where(function ($query): void {
+                    $query->whereNull('approval_status')->orWhere('approval_status', '!=', 'rejected');
+                })
+                ->get(['nik', 'pgw_nup']);
+
+            foreach ($tfRows as $tfRow) {
+                $matchedNik = strtoupper(trim((string) ($tfRow->nik ?: $tfRow->pgw_nup)));
+                if ($matchedNik !== '') {
+                    $presentNiks[$matchedNik] = true;
+                }
+            }
         }
 
         return count($presentNiks);
+    }
+
+    /**
+     * Ambil catatan presensi dari database tirtafield (tabel presensi) berdasarkan NIK/NUP.
+     *
+     * @param  list<string>  $niks
+     * @return array<string, array<string, mixed>>
+     */
+    private function loadTirtafieldPresensiMap(array $niks, string $startDate, string $endDate): array
+    {
+        if (empty($niks) || ! Schema::hasTable('presensi')) {
+            return [];
+        }
+
+        $rows = Presensi::query()
+            ->whereBetween('tanggal', [$startDate, $endDate])
+            ->where(function ($query) use ($niks): void {
+                $query->whereIn('nik', $niks)->orWhereIn('pgw_nup', $niks);
+            })
+            ->where(function ($query): void {
+                $query->whereNull('approval_status')->orWhere('approval_status', '!=', 'rejected');
+            })
+            ->orderBy('tanggal', 'asc')
+            ->orderBy('waktu', 'asc')
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $dateKey = $row->tanggal ? $row->tanggal->format('Y-m-d') : '';
+            $rawNik = trim((string) ($row->nik ?: $row->pgw_nup));
+            if ($dateKey === '' || $rawNik === '') {
+                continue;
+            }
+
+            $key = strtoupper($rawNik).'|'.$dateKey;
+            if (! isset($map[$key])) {
+                $map[$key] = [
+                    'masuk' => '-',
+                    'istirahatKeluar' => '-',
+                    'istirahatMasuk' => '-',
+                    'pulang' => '-',
+                    'is_late' => false,
+                    'notes' => [],
+                    'locations' => [],
+                ];
+            }
+
+            $slot = $row->normalizedSlot();
+            $timeVal = $row->formattedWaktu();
+            if ($timeVal !== '-') {
+                $map[$key][$slot] = $timeVal;
+            }
+
+            if (in_array($slot, ['masuk', 'istirahatMasuk'], true) && $row->isLate()) {
+                $map[$key]['is_late'] = true;
+                $map[$key]['notes'][] = $row->status ?: 'Terlambat';
+            }
+            if (! empty($row->catatan)) {
+                $map[$key]['notes'][] = trim((string) $row->catatan);
+            }
+            if (! empty($row->lokasi)) {
+                $map[$key]['locations'][] = trim((string) $row->lokasi);
+            }
+        }
+
+        return $map;
     }
 
     /**

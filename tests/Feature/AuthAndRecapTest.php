@@ -137,17 +137,29 @@ class AuthAndRecapTest extends TestCase
         $printPage->assertSee('DINAS LUAR KOTA');
         $printPage->assertDontSee('SPT ke Batam');
 
-        // K202609 has Shift Siang on 2026-11-18 (14:15 - 22:05)
-        $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-18&end_date=2026-11-18');
+        // K202609 has Tirtafield presensi on 2026-11-16 (08:45 - 17:05) and Shift Siang in table1 on 2026-11-18
+        $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-16&end_date=2026-11-18');
         $detail->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.person.nik', 'K202609')
-            ->assertJsonCount(1, 'data.logs')
-            ->assertJsonPath('data.logs.0.scan1', '14:15')
-            ->assertJsonPath('data.logs.0.scan4', '22:05')
+            ->assertJsonCount(3, 'data.logs')
+            ->assertJsonPath('data.logs.0.tanggal', '2026-11-16')
+            ->assertJsonPath('data.logs.0.scan1', '08:45')
+            ->assertJsonPath('data.logs.0.scan4', '17:05')
+            ->assertJsonPath('data.logs.0.sumber', 'Tirtafield')
             ->assertJsonPath('data.logs.0.status_kehadiran', 'Hadir Penuh')
-            ->assertJsonPath('data.logs.0.is_late', true)
-            ->assertJsonPath('data.logs.0.catatan', 'Telat Masuk Shift Siang');
+            ->assertJsonPath('data.logs.0.fp_notes', 'Telat Masuk Pagi')
+            ->assertJsonPath('data.logs.2.tanggal', '2026-11-18')
+            ->assertJsonPath('data.logs.2.scan1', '14:15')
+            ->assertJsonPath('data.logs.2.scan4', '22:05')
+            ->assertJsonPath('data.logs.2.status_kehadiran', 'Hadir Penuh')
+            ->assertJsonPath('data.logs.2.is_late', true)
+            ->assertJsonPath('data.logs.2.catatan', 'Telat Masuk Shift Siang');
+
+        $tirtafieldView = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?nik=K202609&bulan=11&tahun=2026');
+        $tirtafieldView->assertStatus(200);
+        $tirtafieldView->assertSee('08:45');
+        $tirtafieldView->assertSee('17:05');
 
         // 020101 over 2026-11-18..2026-11-21
         $detailPegawai = $this->actingAs($user)->getJson('/rekap/pegawai/detail/020101?start_date=2026-11-18&end_date=2026-11-21');
