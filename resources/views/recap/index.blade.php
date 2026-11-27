@@ -382,9 +382,17 @@
                             <tbody class="divide-y divide-white/10 text-sm">
                                 @foreach ($dailyLogs as $log)
                                     @php
-                                        $statusBadge = ! $log['has_scan']
-                                            ? 'badge-cyan'
-                                            : ($log['is_late'] ? 'badge-amber' : ($log['status_kehadiran'] === 'Belum Pulang' ? 'badge-blue' : 'badge-em'));
+                                        if ($log['status_kehadiran'] === '(-)') {
+                                            $statusBadge = 'badge-rose';
+                                        } elseif (! $log['has_scan']) {
+                                            $statusBadge = 'badge-cyan';
+                                        } elseif ($log['is_late']) {
+                                            $statusBadge = 'badge-amber';
+                                        } elseif (in_array($log['status_kehadiran'], ['Belum Pulang', 'Pulang Saja'], true)) {
+                                            $statusBadge = 'badge-blue';
+                                        } else {
+                                            $statusBadge = 'badge-em';
+                                        }
                                     @endphp
                                     <tr class="pusimpel-table-row transition-colors">
                                         <td class="py-3 px-4 whitespace-nowrap font-mono text-xs">
@@ -420,9 +428,17 @@
                 <div class="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach ($dailyLogs as $log)
                         @php
-                            $statusBadge = ! $log['has_scan']
-                                ? 'badge-cyan'
-                                : ($log['is_late'] ? 'badge-amber' : ($log['status_kehadiran'] === 'Belum Pulang' ? 'badge-blue' : 'badge-em'));
+                            if ($log['status_kehadiran'] === '(-)') {
+                                $statusBadge = 'badge-rose';
+                            } elseif (! $log['has_scan']) {
+                                $statusBadge = 'badge-cyan';
+                            } elseif ($log['is_late']) {
+                                $statusBadge = 'badge-amber';
+                            } elseif (in_array($log['status_kehadiran'], ['Belum Pulang', 'Pulang Saja'], true)) {
+                                $statusBadge = 'badge-blue';
+                            } else {
+                                $statusBadge = 'badge-em';
+                            }
                         @endphp
                         <article class="pusimpel-card p-4 space-y-2.5">
                             <div class="flex items-start justify-between gap-2">
@@ -641,12 +657,23 @@
                 }
 
                 modalBody.innerHTML = logs.map(function (item) {
-                    const statusBadge = !item.has_scan
-                        ? 'badge-cyan'
-                        : (item.is_late ? 'badge-amber' : 'badge-em');
+                    let statusBadge = 'badge-em';
+                    if (item.status_kehadiran === '(-)') {
+                        statusBadge = 'badge-rose';
+                    } else if (item.is_libur && !item.has_scan) {
+                        statusBadge = 'badge-amber';
+                    } else if (!item.has_scan) {
+                        statusBadge = item.has_reason ? 'badge-cyan' : 'badge-blue';
+                    } else if (item.is_late) {
+                        statusBadge = 'badge-amber';
+                    } else if (item.status_kehadiran === 'Belum Pulang' || item.status_kehadiran === 'Pulang Saja') {
+                        statusBadge = 'badge-blue';
+                    }
+
                     const ketepatanHtml = item.has_scan
                         ? `<span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${item.is_late ? 'badge-amber' : 'badge-em'}">${escapeHtml(item.ketepatan)}</span>`
                         : '';
+                    const jadwalText = (item.jadwal_in && item.jadwal_in !== '-') ? `Jadwal ${escapeHtml(item.jadwal_in)}-${escapeHtml(item.jadwal_out)}` : 'Hari Libur';
                     const notesHtml = item.catatan
                         ? `<p class="text-xs text-[#94a3b8]">${escapeHtml(item.catatan)}</p>`
                         : '';
@@ -655,7 +682,7 @@
                         <div class="rounded-2xl border p-3.5 space-y-2.5 pusimpel-card-alt">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div class="font-mono text-xs font-bold text-white">
-                                    ${escapeHtml(item.tanggal)} (${escapeHtml(item.hari)})
+                                    ${escapeHtml(item.tanggal)} (${escapeHtml(item.hari)}) <span class="text-[#94a3b8] font-normal">· ${jadwalText}</span>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${statusBadge}">${escapeHtml(item.status_kehadiran)}</span>

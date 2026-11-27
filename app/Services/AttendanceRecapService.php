@@ -4,12 +4,12 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Office;
-use App\Models\Presensi;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use stdClass;
 
 class AttendanceRecapService
 {
@@ -61,7 +61,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Ambil daftar personil aktif terklasifikasi menurut kategori rekap.
+     * Ambil daftar personil aktif dari employee kepri_kepegawaian (sumber attendance & attendant).
      *
      * @return Collection<int, array<string, mixed>>
      */
@@ -72,75 +72,43 @@ class AttendanceRecapService
             ->get()
             ->keyBy(fn (User $user): string => strtoupper(trim((string) $user->nik)));
 
-        $employees = Employee::query()
-            ->where(function ($query): void {
-                $query->where('ishapus', 0)->orWhereNull('ishapus');
-            })
-            ->orderBy('pgw_nama', 'asc')
-            ->get();
-
+        $employees = $this->loadEmployeesFromSource();
         $records = collect();
-        $allEmployeeNiks = [];
 
         foreach ($employees as $employee) {
-            $nup = trim((string) $employee->pgw_nup);
-            $upperNup = strtoupper($nup);
-
+            $nup = trim((string) ($employee->pgw_nup ?? ''));
             if ($nup === '') {
                 continue;
             }
 
-            $allEmployeeNiks[$upperNup] = true;
-
-            if ($employee->recapCategory() !== $category) {
+            $classified = $this->classifyEmployeeRecord($employee);
+            if ($classified === null || $classified['category'] !== $category) {
                 continue;
             }
 
+            $upperNup = strtoupper($nup);
             $matchedUser = $usersByNik->get($upperNup);
-            $department = $matchedUser?->department ?: $employee->departmentLabel();
-            $position = $matchedUser?->position ?: $employee->positionLabel();
-            $officeId = $matchedUser?->office_id ?: ($employee->office_id ?: 'hq');
-            $officeName = $matchedUser?->office_name ?: ($employee->office_name ?: 'Kantor Pusat PERUMDA Tirta Kepri');
+            $deptId = isset($employee->dept_id) ? (int) $employee->dept_id : null;
+            $occId = isset($employee->occ_id) ? (int) $employee->occ_id : null;
+
+            $department = $matchedUser?->department
+                ?: ($deptId !== null && isset(Employee::DEPARTMENT_MAP[$deptId]) ? Employee::DEPARTMENT_MAP[$deptId] : 'Unit Umum');
+
+            $position = $matchedUser?->position ?: $this->resolvePositionLabel($employee, $occId);
+            $officeId = $matchedUser?->office_id ?: (($employee->office_id ?? null) ?: 'hq');
+            $officeName = $matchedUser?->office_name ?: (($employee->office_name ?? null) ?: 'Kantor Pusat PERUMDA Tirta Kepri');
 
             $records->push([
                 'pgw_id' => (int) $employee->pgw_id,
                 'nik' => $nup,
                 'name' => trim((string) $employee->pgw_nama),
-                'status_label' => $employee->statusLabel(),
+                'status_label' => $classified['status_label'],
                 'department' => $department,
                 'position' => $position,
                 'office_id' => $officeId,
                 'office_name' => $officeName,
-                'phone' => $matchedUser?->phone ?: ($employee->pgw_nohp ?: '-'),
+                'phone' => $matchedUser?->phone ?: (($employee->pgw_nohp ?? null) ?: '-'),
                 'source' => 'employee',
-            ]);
-        }
-
-        foreach ($usersByNik as $upperNik => $user) {
-            if (isset($allEmployeeNiks[$upperNik])) {
-                continue;
-            }
-
-            if ($user->role === 'staffIT' && strtoupper((string) $user->nik) === 'P242101') {
-                continue;
-            }
-
-            $userClassification = $this->classifyUserOnly($user);
-            if ($userClassification['category'] !== $category) {
-                continue;
-            }
-
-            $records->push([
-                'pgw_id' => null,
-                'nik' => trim((string) $user->nik),
-                'name' => trim((string) $user->name),
-                'status_label' => $userClassification['status_label'],
-                'department' => $user->department ?: 'Unit Umum',
-                'position' => $user->position ?: 'Staf',
-                'office_id' => $user->office_id ?: 'hq',
-                'office_name' => $user->office_name ?: 'Kantor Pusat PERUMDA Tirta Kepri',
-                'phone' => $user->phone ?: '-',
-                'source' => 'users',
             ]);
         }
 
@@ -148,7 +116,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Bangun data rekap terpadu dari attendance, attendant, dan tirtafield.
+     * Bangun rekap absensi dengan logika table1, tempdatascan (attendance) dan attendant+reason (attendant).
      *
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
@@ -198,7 +166,7 @@ class AttendanceRecapService
             return true;
         })->values();
 
-        $dailyRecords = $this->fetchUnifiedDailyRecords($filteredPersonnel, $startDate, $endDate);
+        $dailyRecords = $this->fetchAttendanceAndAttendantRecords($filteredPersonnel, $startDate, $endDate, false);
         $recordsByNik = $dailyRecords->groupBy(fn (array $item): string => strtoupper($item['nik']));
 
         $rows = $filteredPersonnel->map(function (array $person) use ($recordsByNik): array {
@@ -207,7 +175,8 @@ class AttendanceRecapService
             $logs = $recordsByNik->get($upperNik, collect());
 
             $scanLogs = $logs->filter(fn (array $log): bool => $log['has_scan']);
-            $izinLogs = $logs->filter(fn (array $log): bool => ! $log['has_scan'] && $log['has_reason']);
+            $izinLogs = $logs->filter(fn (array $log): bool => ! $log['has_table1_scan'] && $log['has_reason']);
+            $alpaLogs = $logs->filter(fn (array $log): bool => $log['status_kehadiran'] === '(-)');
 
             $masukCount = $scanLogs->filter(fn (array $log): bool => $log['scan1'] !== '-')->count();
             $siangKeluarCount = $scanLogs->filter(fn (array $log): bool => $log['scan2'] !== '-')->count();
@@ -215,19 +184,26 @@ class AttendanceRecapService
             $pulangCount = $scanLogs->filter(fn (array $log): bool => $log['scan4'] !== '-')->count();
 
             $hadirPenuhCount = $scanLogs->filter(fn (array $log): bool => $log['scan1'] !== '-' && $log['scan4'] !== '-')->count();
-            $belumPulangCount = $scanLogs->filter(fn (array $log): bool => $log['scan1'] !== '-' && $log['scan4'] === '-')->count();
+            $hadirWdCount = $scanLogs->filter(fn (array $log): bool => $log['status_kehadiran'] === 'Hadir Penuh')->count();
+            $hadirWeCount = $scanLogs->filter(fn (array $log): bool => $log['status_kehadiran'] === 'Hadir (Hari Libur)')->count();
+            $belumPulangCount = $scanLogs->filter(fn (array $log): bool => $log['status_kehadiran'] === 'Belum Pulang')->count();
+            $pulangSajaCount = $scanLogs->filter(fn (array $log): bool => $log['status_kehadiran'] === 'Pulang Saja')->count();
 
             $tepatWaktuCount = $scanLogs->filter(fn (array $log): bool => ! $log['is_late'])->count();
             $terlambatCount = $scanLogs->filter(fn (array $log): bool => $log['is_late'])->count();
-
-            $latestLog = $logs->first();
+            $activeLogs = $logs->filter(fn (array $log): bool => $log['has_scan'] || $log['has_reason']);
+            $latestLog = $activeLogs->first() ?: $logs->first();
 
             return array_merge($person, [
                 'hari_hadir' => $scanLogs->count(),
                 'hadir_penuh_count' => $hadirPenuhCount,
+                'hadir_wd_count' => $hadirWdCount,
+                'hadir_we_count' => $hadirWeCount,
                 'belum_pulang_count' => $belumPulangCount,
+                'pulang_saja_count' => $pulangSajaCount,
                 'izin_count' => $izinLogs->count(),
-                'total_log' => $logs->count(),
+                'alpa_count' => $alpaLogs->count(),
+                'total_log' => $activeLogs->count(),
                 'masuk_count' => $masukCount,
                 'istirahat_keluar_count' => $siangKeluarCount,
                 'istirahat_masuk_count' => $siangMasukCount,
@@ -251,7 +227,8 @@ class AttendanceRecapService
 
         $visibleNiks = $rows->pluck('nik')->map(fn (string $n): string => strtoupper($n))->all();
         $dailyLogs = $dailyRecords
-            ->filter(fn (array $log): bool => in_array(strtoupper($log['nik']), $visibleNiks, true))
+            ->filter(fn (array $log): bool => in_array(strtoupper($log['nik']), $visibleNiks, true)
+                && ($log['has_scan'] || $log['has_reason'] || $log['status_kehadiran'] === '(-)'))
             ->values();
 
         $summary = [
@@ -260,6 +237,7 @@ class AttendanceRecapService
             'total_hari_hadir' => $rows->sum('hari_hadir'),
             'total_hadir_penuh' => $rows->sum('hadir_penuh_count'),
             'total_izin' => $rows->sum('izin_count'),
+            'total_alpa' => $rows->sum('alpa_count'),
             'total_tepat_waktu' => $rows->sum('tepat_waktu_count'),
             'total_terlambat' => $rows->sum('terlambat_count'),
             'total_log' => $rows->sum('total_log'),
@@ -296,7 +274,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Ambil rincian log kehadiran harian satu pegawai dari ketiga sumber.
+     * Ambil rincian absensi kalender harian penuh satu pegawai sesuai attendance dan attendant.
      *
      * @return array<string, mixed>|null
      */
@@ -317,7 +295,7 @@ class AttendanceRecapService
             return null;
         }
 
-        $logs = $this->fetchUnifiedDailyRecords(collect([$person]), $start, $end)->values();
+        $logs = $this->fetchAttendanceAndAttendantRecords(collect([$person]), $start, $end, true)->values();
 
         return [
             'person' => $person,
@@ -330,14 +308,18 @@ class AttendanceRecapService
     }
 
     /**
-     * Tarik dan gabungkan rekap harian dari table1/tempdatascan (attendance),
-     * attendant+reason (attendant), dan presensi (tirtafield).
+     * Ambil dan susun rekap harian identik dengan attendance (table1 + tempdatascan)
+     * dan attendant (table1 LEFT JOIN attendant LEFT JOIN reason).
      *
      * @param  Collection<int, array<string, mixed>>  $personnel
      * @return Collection<int, array<string, mixed>>
      */
-    private function fetchUnifiedDailyRecords(Collection $personnel, string $startDate, string $endDate): Collection
-    {
+    private function fetchAttendanceAndAttendantRecords(
+        Collection $personnel,
+        string $startDate,
+        string $endDate,
+        bool $fullCalendar
+    ): Collection {
         if ($personnel->isEmpty()) {
             return collect();
         }
@@ -363,13 +345,7 @@ class AttendanceRecapService
                     ->select(['emp_id', 'dtgl', 'inpresent', 'outpresent'])
                     ->whereIn('emp_id', $empIds)
                     ->whereBetween('dtgl', [$startDate, $endDate])
-                    ->where(function ($query): void {
-                        $query->where(function ($q): void {
-                            $q->whereNotNull('inpresent')->where('inpresent', '!=', '00:00:00')->where('inpresent', '!=', '');
-                        })->orWhere(function ($q): void {
-                            $q->whereNotNull('outpresent')->where('outpresent', '!=', '00:00:00')->where('outpresent', '!=', '');
-                        });
-                    })
+                    ->orderBy('dtgl', 'asc')
                     ->get();
 
                 foreach ($table1Rows as $row) {
@@ -387,9 +363,9 @@ class AttendanceRecapService
             }
 
             if (Schema::connection($kepegConn)->hasTable('tempdatascan')) {
-                $scanUserIds = array_values(array_unique(array_merge(
-                    array_map('strval', $empIds),
-                    $niks
+                $scanUserIds = array_values(array_unique(array_filter(
+                    array_merge(array_map('strval', $empIds), $niks),
+                    fn (string $v): bool => trim($v) !== ''
                 )));
 
                 if (! empty($scanUserIds)) {
@@ -404,6 +380,9 @@ class AttendanceRecapService
 
                     foreach ($scanRows as $row) {
                         $rawUser = trim((string) $row->userid);
+                        if ($rawUser === '') {
+                            continue;
+                        }
                         $person = $personByNik->get(strtoupper($rawUser));
                         if (! $person && ctype_digit($rawUser)) {
                             $person = $personByEmpId->get((int) $rawUser);
@@ -451,61 +430,32 @@ class AttendanceRecapService
                 }
             }
         } catch (\Throwable) {
-            // Tetap kembalikan data dari Tirtafield bila koneksi kepri_kepegawaian sedang tidak tersedia
+            // Kembalikan koleksi kosong bila koneksi kepri_kepegawaian sedang tidak dapat diakses
         }
 
-        $tirtafieldMap = [];
-        if (! empty($niks)) {
-            $presensiRows = Presensi::query()
-                ->whereIn('nik', $niks)
-                ->whereBetween('tanggal', [$startDate, $endDate])
-                ->orderBy('tanggal', 'asc')
-                ->orderBy('waktu', 'asc')
-                ->get();
+        $today = Carbon::now('Asia/Jakarta')->toDateString();
+        $holidays = $this->buildHolidaysForRange($startDate, $endDate);
 
-            foreach ($presensiRows as $row) {
-                $dateKey = $row->tanggal ? $row->tanggal->format('Y-m-d') : '';
-                if ($dateKey === '') {
-                    continue;
-                }
-                $key = strtoupper(trim((string) $row->nik)).'|'.$dateKey;
-                $slot = $row->normalizedSlot();
-
-                if (! isset($tirtafieldMap[$key])) {
-                    $tirtafieldMap[$key] = [
-                        'masuk' => '-',
-                        'istirahatKeluar' => '-',
-                        'istirahatMasuk' => '-',
-                        'pulang' => '-',
-                        'is_late' => false,
-                        'notes' => [],
-                        'locations' => [],
-                    ];
-                }
-
-                $tirtafieldMap[$key][$slot] = $row->formattedWaktu();
-                if ($slot === 'masuk' && $row->isLate()) {
-                    $tirtafieldMap[$key]['is_late'] = true;
-                    $tirtafieldMap[$key]['notes'][] = $row->status ?: 'Terlambat';
-                }
-                if (! empty($row->catatan)) {
-                    $tirtafieldMap[$key]['notes'][] = trim((string) $row->catatan);
-                }
-                if (! empty($row->lokasi)) {
-                    $tirtafieldMap[$key]['locations'][] = trim((string) $row->lokasi);
+        if ($fullCalendar) {
+            $keys = [];
+            $calendarDates = $this->expandDateRange($startDate, $endDate);
+            foreach ($personnel as $person) {
+                $upperNik = strtoupper(trim((string) $person['nik']));
+                foreach ($calendarDates as $dateKey) {
+                    $keys[] = $upperNik.'|'.$dateKey;
                 }
             }
+        } else {
+            $keys = array_values(array_unique(array_merge(
+                array_keys($table1Map),
+                array_keys($midScanMap),
+                array_keys($attendantMap)
+            )));
         }
 
-        $allKeys = array_values(array_unique(array_merge(
-            array_keys($table1Map),
-            array_keys($attendantMap),
-            array_keys($tirtafieldMap)
-        )));
+        $records = collect();
 
-        $unified = collect();
-
-        foreach ($allKeys as $key) {
+        foreach ($keys as $key) {
             [$upperNik, $dateKey] = explode('|', $key, 2);
             $person = $personByNik->get($upperNik);
             if (! $person) {
@@ -515,115 +465,116 @@ class AttendanceRecapService
             $t1 = $table1Map[$key] ?? null;
             $rawMidScans = array_values(array_unique($midScanMap[$key] ?? []));
             $att = $attendantMap[$key] ?? null;
-            $tf = $tirtafieldMap[$key] ?? null;
 
             $carbonDate = Carbon::parse($dateKey);
             $hariIndo = $this->hariIndonesia($carbonDate->format('l'));
             $isWeekend = in_array($hariIndo, ['Sabtu', 'Minggu'], true);
+            $holidayName = $holidays[$dateKey] ?? null;
+            $isHoliday = $holidayName !== null;
+            $isLibur = $isWeekend || $isHoliday;
+            $isFuture = $dateKey > $today;
 
             $scan1 = $t1['inpresent'] ?? '-';
             $scan4 = $t1['outpresent'] ?? '-';
 
-            if ($scan1 === '-' && $tf !== null && $tf['masuk'] !== '-') {
-                $scan1 = $tf['masuk'];
-            }
-            if ($scan4 === '-' && $tf !== null && $tf['pulang'] !== '-') {
-                $scan4 = $tf['pulang'];
-            }
-
             [$scan2, $scan3, $isShift] = $this->resolveMiddayScans($scan1, $scan4, $rawMidScans, $isWeekend);
 
-            if ($scan2 === '-' && $tf !== null && $tf['istirahatKeluar'] !== '-') {
-                $scan2 = $tf['istirahatKeluar'];
-            }
-            if ($scan3 === '-' && $tf !== null && $tf['istirahatMasuk'] !== '-') {
-                $scan3 = $tf['istirahatMasuk'];
-            }
+            $hasTable1Scan = ($scan1 !== '-' || $scan4 !== '-');
+            $hasScan = ($hasTable1Scan || $scan2 !== '-' || $scan3 !== '-');
+            $reasonText = $att['reason'] ?? '';
+            $attNotes = $att['notes'] ?? '';
+            $hasReason = ($att !== null && ($reasonText !== '' || $attNotes !== ''));
 
-            $hasScan = ($scan1 !== '-' || $scan2 !== '-' || $scan3 !== '-' || $scan4 !== '-');
-            $hasReason = $att !== null && ($att['reason'] !== '' || $att['notes'] !== '');
-
-            if (! $hasScan && ! $hasReason) {
+            if (! $fullCalendar && ! $hasScan && ! $hasReason && ($isLibur || $isFuture)) {
                 continue;
-            }
-
-            $sources = [];
-            if ($t1 !== null) {
-                $sources[] = 'Attendance';
-            }
-            if ($hasReason) {
-                $sources[] = 'Attendant';
-            }
-            if ($tf !== null) {
-                $sources[] = 'Tirtafield';
             }
 
             $notes = [];
             $isLate = false;
 
-            if ($hasScan) {
+            if ($hasTable1Scan) {
                 if ($scan1 !== '-' && $scan4 !== '-') {
-                    $statusKehadiran = $isWeekend ? 'Hadir (Hari Libur)' : 'Hadir Penuh';
-                } elseif ($scan1 !== '-' && $scan4 === '-') {
+                    $statusKehadiran = $isLibur ? 'Hadir (Hari Libur)' : 'Hadir Penuh';
+                } elseif ($scan1 !== '-') {
                     $statusKehadiran = 'Belum Pulang';
-                } elseif ($scan1 === '-' && $scan4 !== '-') {
-                    $statusKehadiran = 'Pulang Saja';
                 } else {
-                    $statusKehadiran = 'Scan Siang';
+                    $statusKehadiran = 'Pulang Saja';
                 }
-
-                if ($t1 !== null && ! $isWeekend) {
-                    [$fpLate, $fpNotes] = $this->evaluateFingerprintPunctuality($scan1, $scan2, $scan3, $scan4, $hariIndo, $isShift);
-                    if ($fpLate) {
-                        $isLate = true;
-                    }
-                    $notes = array_merge($notes, $fpNotes);
-                }
-
-                if ($tf !== null) {
-                    if ($tf['is_late']) {
-                        $isLate = true;
-                    }
-                    $notes = array_merge($notes, $tf['notes']);
-                }
-
-                if ($att !== null && $att['reason'] !== '') {
-                    $notes[] = $att['reason'].($att['notes'] !== '' ? ': '.$att['notes'] : '');
-                }
+            } elseif ($hasReason && $reasonText !== '') {
+                $statusKehadiran = $reasonText;
+            } elseif ($hasScan) {
+                $statusKehadiran = 'Scan Siang';
+            } elseif ($isHoliday) {
+                $statusKehadiran = $holidayName;
+            } elseif ($isWeekend) {
+                $statusKehadiran = 'Libur Akhir Pekan';
+            } elseif ($isFuture) {
+                $statusKehadiran = '-';
             } else {
-                $statusKehadiran = $att['reason'] !== '' ? $att['reason'] : 'Keterangan';
-                if ($att['notes'] !== '') {
-                    $notes[] = $att['notes'];
-                }
+                $statusKehadiran = '(-)';
             }
 
-            $lokasi = ($tf !== null && ! empty($tf['locations']))
-                ? implode(', ', array_unique($tf['locations']))
-                : ($t1 !== null ? 'Mesin Fingerprint' : $person['office_name']);
+            if ($hasScan && in_array($hariIndo, ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'], true) && ! $isHoliday) {
+                [$isLate, $fpNotes] = $this->evaluateFingerprintPunctuality($scan1, $scan2, $scan3, $scan4, $hariIndo, $isShift);
+                $notes = array_merge($notes, $fpNotes);
+            }
 
-            $unified->push([
+            if ($hasReason) {
+                if ($hasTable1Scan && $reasonText !== '') {
+                    $notes[] = $reasonText.($attNotes !== '' ? ': '.$attNotes : '');
+                } elseif ($attNotes !== '') {
+                    $notes[] = $attNotes;
+                } elseif (! $hasTable1Scan && $reasonText === '') {
+                    $notes[] = 'Keterangan';
+                }
+            } elseif (! $hasScan && ($isHoliday || $isWeekend)) {
+                $notes[] = $holidayName ?? 'Libur Akhir Pekan';
+            }
+
+            $sources = [];
+            if ($hasTable1Scan || $scan2 !== '-' || $scan3 !== '-') {
+                $sources[] = 'Attendance';
+            }
+            if ($hasReason) {
+                $sources[] = 'Attendant';
+            }
+            if (empty($sources)) {
+                $sources[] = $t1 !== null ? 'Attendant' : 'Attendance';
+            }
+
+            $records->push([
                 'nik' => $person['nik'],
                 'name' => $person['name'],
                 'status_label' => $person['status_label'],
                 'department' => $person['department'],
                 'tanggal' => $dateKey,
                 'hari' => $hariIndo,
+                'is_libur' => $isLibur,
+                'jadwal_in' => $isLibur ? '-' : '08:00',
+                'jadwal_out' => $isLibur ? '-' : '16:00',
                 'scan1' => $scan1,
                 'scan2' => $scan2,
                 'scan3' => $scan3,
                 'scan4' => $scan4,
+                'has_table1_scan' => $hasTable1Scan,
                 'has_scan' => $hasScan,
                 'has_reason' => $hasReason,
                 'status_kehadiran' => $statusKehadiran,
                 'is_late' => $isLate,
-                'ketepatan' => $hasScan ? ($isLate ? 'Terlambat' : 'Tepat Waktu') : 'Keterangan',
-                'lokasi' => $lokasi,
+                'ketepatan' => $hasScan ? ($isLate ? 'Terlambat' : 'Tepat Waktu') : ($hasReason ? $statusKehadiran : '-'),
+                'lokasi' => $hasScan ? 'Mesin Fingerprint' : '-',
                 'catatan' => implode(' · ', array_values(array_unique(array_filter($notes)))),
                 'sumber' => implode(' + ', $sources),
             ]);
         }
 
-        return $unified->sort(function (array $a, array $b): int {
+        if ($fullCalendar) {
+            return $records->sort(function (array $a, array $b): int {
+                return strcmp($a['tanggal'], $b['tanggal']);
+            })->values();
+        }
+
+        return $records->sort(function (array $a, array $b): int {
             $cmpDate = strcmp($b['tanggal'], $a['tanggal']);
             if ($cmpDate !== 0) {
                 return $cmpDate;
@@ -634,7 +585,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Hitung jumlah personil unik yang memiliki catatan scan/kehadiran pada rentang tanggal.
+     * Hitung jumlah personil unik yang memiliki scan masuk/pulang pada rentang tanggal.
      *
      * @param  Collection<int, array<string, mixed>>  $personnel
      */
@@ -645,7 +596,6 @@ class AttendanceRecapService
         }
 
         $presentNiks = [];
-        $niks = $personnel->pluck('nik')->filter()->unique()->values()->all();
         $empIds = $personnel->pluck('pgw_id')->filter(fn ($id): bool => ! empty($id))->unique()->values()->all();
         $nikByEmpId = $personnel
             ->filter(fn (array $p): bool => ! empty($p['pgw_id']))
@@ -677,22 +627,128 @@ class AttendanceRecapService
                 }
             }
         } catch (\Throwable) {
-            // Abaikan jika koneksi kepegawaian tidak dapat dijangkau
-        }
-
-        if (! empty($niks)) {
-            $tfNiks = Presensi::query()
-                ->whereIn('nik', $niks)
-                ->whereBetween('tanggal', [$startDate, $endDate])
-                ->distinct()
-                ->pluck('nik');
-
-            foreach ($tfNiks as $nik) {
-                $presentNiks[strtoupper(trim((string) $nik))] = true;
-            }
+            return 0;
         }
 
         return count($presentNiks);
+    }
+
+    /**
+     * Muat seluruh baris employee aktif dari kepri_kepegawaian (fallback ke koneksi default saat testing).
+     *
+     * @return Collection<int, stdClass|Employee>
+     */
+    private function loadEmployeesFromSource(): Collection
+    {
+        $kepegConn = $this->kepegawaianConnectionName();
+
+        try {
+            if (Schema::connection($kepegConn)->hasTable('employee')) {
+                $rows = DB::connection($kepegConn)
+                    ->table('employee')
+                    ->where(function ($query): void {
+                        $query->where('ishapus', 0)->orWhereNull('ishapus');
+                    })
+                    ->orderBy('pgw_nama', 'asc')
+                    ->get();
+
+                if ($rows->isNotEmpty()) {
+                    return $rows;
+                }
+            }
+        } catch (\Throwable) {
+            // Fallback ke koneksi default bila koneksi kepegawaian sedang tidak dapat dijangkau
+        }
+
+        return Employee::query()
+            ->where(function ($query): void {
+                $query->where('ishapus', 0)->orWhereNull('ishapus');
+            })
+            ->orderBy('pgw_nama', 'asc')
+            ->get();
+    }
+
+    /**
+     * Klasifikasi kategori & status kepegawaian dari satu baris employee.
+     *
+     * @return array{category: string, status_label: string}|null
+     */
+    private function classifyEmployeeRecord(stdClass|Employee $employee): ?array
+    {
+        if ($employee instanceof Employee) {
+            $category = $employee->recapCategory();
+            if ($category === null) {
+                return null;
+            }
+
+            return [
+                'category' => $category,
+                'status_label' => $employee->statusLabel(),
+            ];
+        }
+
+        $rawStatus = $employee->pgw_sttskerja ?? null;
+        if ($rawStatus === null) {
+            return null;
+        }
+
+        $statusCode = (int) $rawStatus;
+        $nup = strtoupper(trim((string) ($employee->pgw_nup ?? '')));
+        $occId = isset($employee->occ_id) ? (int) $employee->occ_id : null;
+        $deptId = isset($employee->dept_id) ? (int) $employee->dept_id : null;
+
+        if ($statusCode === 1) {
+            return ['category' => self::CATEGORY_PEGAWAI, 'status_label' => 'Pegawai Tetap'];
+        }
+
+        if ($statusCode === 3 && ($nup === 'D001' || $occId === 7 || $deptId === 1)) {
+            return ['category' => self::CATEGORY_PEGAWAI, 'status_label' => 'Direksi'];
+        }
+
+        if ($statusCode === 2) {
+            return ['category' => self::CATEGORY_NON_TETAP, 'status_label' => 'Capeg'];
+        }
+
+        if ($statusCode === 9) {
+            return ['category' => self::CATEGORY_NON_TETAP, 'status_label' => 'PKWT'];
+        }
+
+        if ($statusCode === 3) {
+            return [
+                'category' => self::CATEGORY_NON_TETAP,
+                'status_label' => str_starts_with($nup, 'H') ? 'Honor' : 'Kontrak',
+            ];
+        }
+
+        if ($statusCode === 4) {
+            return [
+                'category' => self::CATEGORY_NON_TETAP,
+                'status_label' => str_starts_with($nup, 'K') ? 'Kontrak' : 'Honor',
+            ];
+        }
+
+        return null;
+    }
+
+    private function resolvePositionLabel(stdClass|Employee $employee, ?int $occId): string
+    {
+        if ($employee instanceof Employee) {
+            return $employee->positionLabel();
+        }
+
+        $seksi = trim((string) ($employee->seksi_bidang ?? ''));
+        if ($seksi !== '') {
+            return $seksi;
+        }
+
+        $occAddDesc = trim((string) ($employee->occ_add_desc ?? ''));
+        if ($occId !== null && isset(Employee::OCCUPATION_MAP[$occId])) {
+            $base = Employee::OCCUPATION_MAP[$occId];
+
+            return $occAddDesc !== '' ? $base.' - '.$occAddDesc : $base;
+        }
+
+        return $occAddDesc !== '' ? $occAddDesc : 'Staf';
     }
 
     /**
@@ -752,7 +808,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Evaluasi keterlambatan scan fingerprint sesuai aturan attendance/index.php.
+     * Evaluasi keterlambatan scan fingerprint sesuai aturan attendance/index.php dan cetak.php.
      *
      * @return array{0: bool, 1: list<string>}
      */
@@ -796,6 +852,7 @@ class AttendanceRecapService
             }
 
             if ($scan3 !== '-' && strtotime($scan3) > strtotime('13:00')) {
+                $isLate = true;
                 $notes[] = 'Telat Masuk Siang';
             }
         }
@@ -818,6 +875,59 @@ class AttendanceRecapService
         }
 
         return $trimmed;
+    }
+
+    /**
+     * Daftar hari libur nasional sesuai kalender pada attendance/cetak.php & attendant/cetak.php.
+     *
+     * @return array<string, string>
+     */
+    private function buildHolidaysForRange(string $startDate, string $endDate): array
+    {
+        $startYear = (int) substr($startDate, 0, 4);
+        $endYear = (int) substr($endDate, 0, 4);
+        $holidays = [];
+
+        for ($year = $startYear; $year <= $endYear; $year++) {
+            if ($year === 2026) {
+                $holidays['2026-01-01'] = 'Tahun Baru Masehi';
+                $holidays['2026-05-01'] = 'Hari Buruh Internasional';
+                $holidays['2026-05-14'] = 'Kenaikan Yesus Kristus';
+                $holidays['2026-05-15'] = 'Cuti Bersama Kenaikan Yesus';
+                $holidays['2026-05-27'] = 'Hari Raya Idul Adha';
+                $holidays['2026-05-28'] = 'Cuti Bersama Idul Adha';
+                $holidays['2026-05-31'] = 'Hari Raya Waisak';
+                $holidays['2026-06-01'] = 'Hari Lahir Pancasila';
+                $holidays['2026-08-17'] = 'Hari Kemerdekaan RI';
+                $holidays['2026-08-25'] = 'Hari Maulid Nabi';
+                $holidays['2026-12-25'] = 'Hari Raya Natal';
+            } else {
+                $holidays[$year.'-01-01'] = 'Tahun Baru Masehi';
+                $holidays[$year.'-05-01'] = 'Hari Buruh Internasional';
+                $holidays[$year.'-06-01'] = 'Hari Lahir Pancasila';
+                $holidays[$year.'-08-17'] = 'Hari Kemerdekaan RI';
+                $holidays[$year.'-12-25'] = 'Hari Raya Natal';
+            }
+        }
+
+        return $holidays;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function expandDateRange(string $startDate, string $endDate): array
+    {
+        $dates = [];
+        $cursor = Carbon::parse($startDate);
+        $end = Carbon::parse($endDate);
+
+        while ($cursor->lte($end)) {
+            $dates[] = $cursor->toDateString();
+            $cursor->addDay();
+        }
+
+        return $dates;
     }
 
     private function normalizeTime(string $value): string
@@ -855,39 +965,6 @@ class AttendanceRecapService
     private function kepegawaianConnectionName(): string
     {
         return (string) config('database.kepegawaian_connection', 'kepegawaian');
-    }
-
-    /**
-     * Klasifikasi akun yang hanya ada di tabel users tanpa padanan di tabel employee.
-     *
-     * @return array{category: string, status_label: string}
-     */
-    private function classifyUserOnly(User $user): array
-    {
-        $status = trim((string) $user->status_pegawai);
-        $lower = mb_strtolower($status);
-
-        if (str_contains($lower, 'capeg')) {
-            return ['category' => self::CATEGORY_NON_TETAP, 'status_label' => 'Capeg'];
-        }
-
-        if (str_contains($lower, 'honor')) {
-            return ['category' => self::CATEGORY_NON_TETAP, 'status_label' => 'Honor'];
-        }
-
-        if (str_contains($lower, 'pkwt')) {
-            return ['category' => self::CATEGORY_NON_TETAP, 'status_label' => 'PKWT'];
-        }
-
-        if (str_contains($lower, 'kontrak')) {
-            return ['category' => self::CATEGORY_NON_TETAP, 'status_label' => 'Kontrak'];
-        }
-
-        if ($user->role === 'direktur' || str_contains($lower, 'direksi')) {
-            return ['category' => self::CATEGORY_PEGAWAI, 'status_label' => 'Direksi'];
-        }
-
-        return ['category' => self::CATEGORY_PEGAWAI, 'status_label' => 'Pegawai Tetap'];
     }
 
     private function sanitizeDate(?string $value): ?string

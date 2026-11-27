@@ -83,11 +83,11 @@ class AuthAndRecapTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_rekap_pegawai_pulls_attendance_attendant_and_tirtafield(): void
+    public function test_rekap_pegawai_pulls_attendance_and_attendant_rules(): void
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
-        $response = $this->actingAs($user)->get('/rekap/pegawai?start_date=2026-11-01&end_date=2026-11-30');
+        $response = $this->actingAs($user)->get('/rekap/pegawai?start_date=2026-11-18&end_date=2026-11-21');
 
         $response->assertStatus(200);
         $response->assertSee('Pegawai Tetap Satu');
@@ -104,7 +104,7 @@ class AuthAndRecapTest extends TestCase
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
-        $all = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-01&end_date=2026-11-30');
+        $all = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-18&end_date=2026-11-21');
         $all->assertStatus(200);
         $all->assertSee('Capeg Satu');
         $all->assertSee('Honor Satu');
@@ -113,43 +113,59 @@ class AuthAndRecapTest extends TestCase
         $all->assertSee('Izin Khusus');
         $all->assertDontSee('Pegawai Tetap Satu');
 
-        $capegOnly = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-01&end_date=2026-11-30&sub_status=Capeg');
+        $capegOnly = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-18&end_date=2026-11-21&sub_status=Capeg');
         $capegOnly->assertStatus(200);
         $capegOnly->assertSee('Capeg Satu');
         $capegOnly->assertDontSee('Honor Satu');
         $capegOnly->assertDontSee('Kontrak Satu');
     }
 
-    public function test_detail_json_and_csv_export_include_unified_sources(): void
+    public function test_detail_json_and_csv_export_match_attendance_and_attendant(): void
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
-        // K202609 has Tirtafield presensi on 2026-11-16
-        $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-01&end_date=2026-11-30');
+        // K202609 has Shift Siang on 2026-11-18 (14:15 - 22:05)
+        $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-18&end_date=2026-11-18');
         $detail->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.person.nik', 'K202609')
-            ->assertJsonPath('data.logs.0.sumber', 'Tirtafield')
-            ->assertJsonCount(1, 'data.logs');
+            ->assertJsonCount(1, 'data.logs')
+            ->assertJsonPath('data.logs.0.scan1', '14:15')
+            ->assertJsonPath('data.logs.0.scan4', '22:05')
+            ->assertJsonPath('data.logs.0.status_kehadiran', 'Hadir Penuh')
+            ->assertJsonPath('data.logs.0.is_late', true)
+            ->assertJsonPath('data.logs.0.catatan', 'Telat Masuk Shift Siang');
 
-        // 020101 has Fingerprint (table1 + tempdatascan) on 2026-11-18 and Attendant reason on 2026-11-19
-        $detailPegawai = $this->actingAs($user)->getJson('/rekap/pegawai/detail/020101?start_date=2026-11-01&end_date=2026-11-30');
+        // 020101 over 2026-11-18..2026-11-21:
+        // 18: table1 + tempdatascan (Hadir Penuh, 4 scans)
+        // 19: attendant DINAS LUAR KOTA
+        // 20 (Jumat): table1 empty -> (-)
+        // 21 (Sabtu): Libur Akhir Pekan
+        $detailPegawai = $this->actingAs($user)->getJson('/rekap/pegawai/detail/020101?start_date=2026-11-18&end_date=2026-11-21');
         $detailPegawai->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonCount(2, 'data.logs')
-            ->assertJsonPath('data.logs.0.status_kehadiran', 'DINAS LUAR KOTA')
-            ->assertJsonPath('data.logs.1.scan1', '07:55')
-            ->assertJsonPath('data.logs.1.scan2', '12:05')
-            ->assertJsonPath('data.logs.1.scan3', '13:02')
-            ->assertJsonPath('data.logs.1.scan4', '16:10');
+            ->assertJsonCount(4, 'data.logs')
+            ->assertJsonPath('data.logs.0.tanggal', '2026-11-18')
+            ->assertJsonPath('data.logs.0.scan1', '07:55')
+            ->assertJsonPath('data.logs.0.scan2', '12:05')
+            ->assertJsonPath('data.logs.0.scan3', '13:02')
+            ->assertJsonPath('data.logs.0.scan4', '16:10')
+            ->assertJsonPath('data.logs.0.status_kehadiran', 'Hadir Penuh')
+            ->assertJsonPath('data.logs.1.tanggal', '2026-11-19')
+            ->assertJsonPath('data.logs.1.status_kehadiran', 'DINAS LUAR KOTA')
+            ->assertJsonPath('data.logs.2.tanggal', '2026-11-20')
+            ->assertJsonPath('data.logs.2.status_kehadiran', '(-)')
+            ->assertJsonPath('data.logs.3.tanggal', '2026-11-21')
+            ->assertJsonPath('data.logs.3.jadwal_in', '-')
+            ->assertJsonPath('data.logs.3.status_kehadiran', 'Libur Akhir Pekan');
 
-        $csv = $this->actingAs($user)->get('/rekap/pegawai/export?start_date=2026-11-01&end_date=2026-11-30');
+        $csv = $this->actingAs($user)->get('/rekap/pegawai/export?start_date=2026-11-18&end_date=2026-11-21');
         $csv->assertStatus(200);
         $this->assertStringContainsString('text/csv', (string) $csv->headers->get('Content-Type'));
 
         $content = $csv->streamedContent();
         $this->assertStringContainsString('Pegawai Tetap Satu', $content);
-        $this->assertStringContainsString('Hadir Penuh', $content);
+        $this->assertStringContainsString('Tanpa Keterangan (-)', $content);
         $this->assertStringNotContainsString('Kontrak Satu', $content);
     }
 
@@ -426,10 +442,28 @@ class AuthAndRecapTest extends TestCase
                 'outpresent' => '16:10:00',
             ],
             [
+                'emp_id' => 1,
+                'dtgl' => '2026-11-19',
+                'inpresent' => null,
+                'outpresent' => null,
+            ],
+            [
+                'emp_id' => 1,
+                'dtgl' => '2026-11-20',
+                'inpresent' => null,
+                'outpresent' => null,
+            ],
+            [
                 'emp_id' => 3,
                 'dtgl' => '2026-11-18',
                 'inpresent' => '08:15:00',
                 'outpresent' => null,
+            ],
+            [
+                'emp_id' => 6,
+                'dtgl' => '2026-11-18',
+                'inpresent' => '14:15:00',
+                'outpresent' => '22:05:00',
             ],
         ]);
 
