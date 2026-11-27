@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cetak {{ $pageTitle }} | {{ $recap['selected_person']['name'] ?? 'Tirta Kepri' }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('build/favicon.png') }}">
     <style>
         @page {
             size: A4 portrait;
@@ -38,20 +39,35 @@
             gap: 8px;
         }
         .btn-toolbar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 36px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             background: rgba(255, 255, 255, 0.08);
             color: #f1f5f9;
-            padding: 7px 14px;
-            border-radius: 999px;
+            padding: 0 14px;
+            border-radius: 10px;
             font-size: 12px;
             font-weight: 600;
+            line-height: 1;
             cursor: pointer;
             text-decoration: none;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .btn-toolbar:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.35);
         }
         .btn-toolbar-primary {
             background: #38bdf8;
             color: #070c16;
             border-color: #38bdf8;
+        }
+        .btn-toolbar-primary:hover {
+            background: #7dd3fc;
+            border-color: #7dd3fc;
         }
         .sheet {
             max-width: 210mm;
@@ -214,7 +230,11 @@
         <div class="actions">
             <a href="{{ route($category === \App\Services\AttendanceRecapService::CATEGORY_PEGAWAI ? 'rekap.pegawai' : 'rekap.non-tetap', ['nik' => $person['nik'] ?? '', 'bulan' => $recap['bulan'], 'tahun' => $recap['tahun']]) }}"
                class="btn-toolbar">
-                Kembali
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                </svg>
+                <span>Kembali</span>
             </a>
             <button type="button" onclick="window.print()" class="btn-toolbar btn-toolbar-primary">
                 Cetak / Simpan PDF
@@ -223,8 +243,8 @@
     </div>
 
     <div class="sheet">
-        @if (file_exists(public_path('favicon.png')))
-            <img src="{{ asset('favicon.png') }}" alt="" class="watermark" aria-hidden="true">
+        @if (file_exists(public_path('build/favicon.png')))
+            <img src="{{ asset('build/favicon.png') }}" alt="" class="watermark" aria-hidden="true">
         @endif
 
         <div class="sheet-content">

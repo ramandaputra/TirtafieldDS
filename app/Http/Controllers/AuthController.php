@@ -32,11 +32,12 @@ class AuthController extends Controller
         $identifier = trim($credentials['nik']);
         $secret = trim($credentials['pin']);
 
+        $identifierLower = mb_strtolower($identifier);
         $user = User::query()
             ->where('is_active', true)
-            ->where(function ($query) use ($identifier): void {
-                $query->where('nik', $identifier)
-                    ->orWhere('email', $identifier);
+            ->where(function ($query) use ($identifierLower): void {
+                $query->whereRaw('LOWER(nik) = ?', [$identifierLower])
+                    ->orWhereRaw('LOWER(email) = ?', [$identifierLower]);
             })
             ->first();
 

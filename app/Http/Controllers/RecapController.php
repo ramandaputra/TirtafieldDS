@@ -226,7 +226,6 @@ class RecapController extends Controller
             'pageTitle' => $isPegawai
                 ? 'Rekap Absensi Pegawai'
                 : 'Rekap Absensi Capeg, Honor, PKWT, Kontrak',
-            'subStatusOptions' => $isPegawai ? [] : AttendanceRecapService::NON_TETAP_STATUSES,
             'recap' => $recap,
             'dbError' => $dbError,
         ]);

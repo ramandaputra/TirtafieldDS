@@ -559,23 +559,23 @@ class AttendanceRecapService
             $isLibur = $isWeekend || $isHoliday;
             $isFuture = $dateKey > $today;
 
-            $scan1 = $t1['inpresent'] ?? '-';
-            $scan4 = $t1['outpresent'] ?? '-';
+            $fingerScan1 = $t1['inpresent'] ?? '-';
+            $fingerScan4 = $t1['outpresent'] ?? '-';
+            $hasFingerScan = $fingerScan1 !== '-' || $fingerScan4 !== '-' || ! empty($rawMidScans);
+            // Prioritas sumber: jika absen mesin finger ada (meskipun juga absen HP), selalu gunakan data mesin finger;
+            // data HP (Tirtafield) hanya dipakai jika tidak ada absen mesin finger pada tanggal tersebut.
+            $useTirtafield = ! $hasFingerScan && $tf !== null;
 
-            if ($scan1 === '-' && $tf !== null && $tf['masuk'] !== '-') {
+            if ($useTirtafield) {
                 $scan1 = $tf['masuk'];
-            }
-            if ($scan4 === '-' && $tf !== null && $tf['pulang'] !== '-') {
-                $scan4 = $tf['pulang'];
-            }
-
-            [$scan2, $scan3, $isShift] = $this->resolveMiddayScans($scan1, $scan4, $rawMidScans, $isWeekend);
-
-            if ($scan2 === '-' && $tf !== null && $tf['istirahatKeluar'] !== '-') {
                 $scan2 = $tf['istirahatKeluar'];
-            }
-            if ($scan3 === '-' && $tf !== null && $tf['istirahatMasuk'] !== '-') {
                 $scan3 = $tf['istirahatMasuk'];
+                $scan4 = $tf['pulang'];
+                $isShift = false;
+            } else {
+                $scan1 = $fingerScan1;
+                $scan4 = $fingerScan4;
+                [$scan2, $scan3, $isShift] = $this->resolveMiddayScans($scan1, $scan4, $rawMidScans, $isWeekend);
             }
 
             $hasTable1Scan = ($scan1 !== '-' || $scan4 !== '-');
@@ -622,9 +622,8 @@ class AttendanceRecapService
                 $notes = array_merge($notes, $fpNotes);
             }
 
-            if ($tf !== null) {
-                $usedTfMasuk = ($t1 === null || $t1['inpresent'] === '-') && $tf['masuk'] !== '-';
-                if ($usedTfMasuk && $tf['is_late'] && ! $isLate && ! $isHoliday) {
+            if ($useTirtafield) {
+                if ($tf['is_late'] && ! $isLate && ! $isHoliday) {
                     $isLate = true;
                     $scan1Late = true;
                     $fpNotes[] = 'Telat Masuk Pagi';
@@ -645,21 +644,21 @@ class AttendanceRecapService
             }
 
             $sources = [];
-            if (($t1 !== null && ($t1['inpresent'] !== '-' || $t1['outpresent'] !== '-')) || ! empty($rawMidScans)) {
+            if ($hasFingerScan) {
                 $sources[] = 'Attendance';
             }
             if ($hasReason) {
                 $sources[] = 'Attendant';
             }
-            if ($tf !== null) {
+            if ($useTirtafield) {
                 $sources[] = 'Tirtafield';
             }
             if (empty($sources)) {
                 $sources[] = $t1 !== null ? 'Attendant' : 'Attendance';
             }
 
-            $lokasi = ($tf !== null && ! empty($tf['locations']))
-                ? implode(', ', array_unique($tf['locations']))
+            $lokasi = $useTirtafield
+                ? (! empty($tf['locations']) ? implode(', ', array_unique($tf['locations'])) : 'Tirtafield')
                 : ($hasScan ? 'Mesin Fingerprint' : '-');
 
             $records->push([

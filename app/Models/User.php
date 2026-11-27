@@ -74,8 +74,8 @@ class User extends Authenticatable
 
         $secret = trim($secret);
 
-        if (! empty($this->pin)) {
-            return (string) $this->pin === $secret;
+        if (! empty($this->pin) && (string) $this->pin === $secret) {
+            return true;
         }
 
         if (! empty($this->password)) {

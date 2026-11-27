@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Rekap Absensi') | Tirtafield DS</title>
-    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('build/favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,50 +14,40 @@
 <body class="min-h-screen flex flex-col antialiased">
     @auth
         <header class="no-print sticky top-0 z-30 pusimpel-header">
-            <div class="max-w-[1260px] mx-auto px-4 sm:px-6">
-                <div class="flex items-center justify-between h-16 gap-4">
+            <div class="max-w-[1140px] mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-14 gap-4">
                     <div class="flex items-center gap-6 min-w-0">
-                        <a href="{{ route('dashboard') }}" class="flex items-center gap-3 min-w-0 rounded-xl py-1 pr-2 hover:opacity-95 transition-opacity">
-                            <span class="w-9 h-9 icon-tile cat-pelanggan shrink-0" aria-hidden="true">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                                    <path d="M9 14l2 2 4-4" />
-                                </svg>
-                            </span>
-                            <span class="font-heading text-base font-extrabold tracking-tight text-white truncate">
+                        <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 min-w-0 py-1 hover:opacity-90 transition-opacity">
+                            <img src="{{ asset('build/favicon.png') }}" alt="" class="w-8 h-8 rounded-lg object-contain shrink-0" aria-hidden="true">
+                            <span class="font-heading text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
                                 Tirtafield <span class="text-[#38bdf8]">DS</span>
                             </span>
                         </a>
 
-                        <nav aria-label="Navigasi utama" class="hidden md:flex items-center gap-2">
+                        <nav aria-label="Navigasi utama" class="hidden md:flex items-center gap-1.5">
                             <a href="{{ route('dashboard') }}"
-                               class="pill-btn min-h-[40px] {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                               class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors {{ request()->routeIs('dashboard') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10 hover:text-white' }}">
                                 Beranda
                             </a>
                             <a href="{{ route('rekap.pegawai') }}"
-                               class="pill-btn min-h-[40px] {{ request()->routeIs('rekap.pegawai') ? 'active' : '' }}">
-                                <span class="category-dot dot-pelanggan" aria-hidden="true"></span>
-                                <span>Pegawai</span>
+                               class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors {{ request()->routeIs('rekap.pegawai') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10 hover:text-white' }}">
+                                Pegawai
                             </a>
                             <a href="{{ route('rekap.non-tetap') }}"
-                               class="pill-btn min-h-[40px] {{ request()->routeIs('rekap.non-tetap') ? 'active' : '' }}">
-                                <span class="category-dot dot-kepegawaian" aria-hidden="true"></span>
-                                <span>Capeg · Honor · PKWT · Kontrak</span>
+                               class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors {{ request()->routeIs('rekap.non-tetap') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10 hover:text-white' }}">
+                                Capeg · Honor · PKWT · Kontrak
                             </a>
                         </nav>
                     </div>
 
                     <div class="hidden md:flex items-center gap-3 shrink-0">
-                        <div class="text-right">
-                            <div class="text-xs font-semibold text-[#f1f5f9] truncate max-w-[180px]">{{ auth()->user()->name }}</div>
-                            <div class="text-[11px] font-mono text-[#94a3b8]">{{ auth()->user()->nik }}</div>
-                        </div>
+                        <span class="text-xs text-[#94a3b8] font-mono">{{ auth()->user()->nik }}</span>
 
                         <form action="{{ route('logout') }}" method="POST">
                             @csrf
                             <button type="submit"
-                                    class="min-h-[40px] px-4 py-2 rounded-full text-xs font-semibold inline-flex items-center gap-2 pusimpel-btn-ghost">
-                                <span>Keluar</span>
+                                    class="min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center pusimpel-btn-ghost">
+                                Keluar
                             </button>
                         </form>
                     </div>
@@ -67,8 +57,8 @@
                             aria-expanded="false"
                             aria-controls="mobileMenuPanel"
                             aria-label="Buka menu navigasi"
-                            class="md:hidden min-h-[44px] min-w-[44px] px-3.5 rounded-full text-xs font-semibold inline-flex items-center gap-2 pusimpel-btn-ghost">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            class="md:hidden min-h-[40px] px-3 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 pusimpel-btn-ghost">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <line x1="3" y1="6" x2="21" y2="6" />
                             <line x1="3" y1="12" x2="21" y2="12" />
                             <line x1="3" y1="18" x2="21" y2="18" />
@@ -78,29 +68,26 @@
                 </div>
             </div>
 
-            <div id="mobileMenuPanel" class="hidden md:hidden border-t border-white/10 bg-[#0c1422] px-4 py-3 space-y-2.5">
-                <div class="pb-2 border-b border-white/10 flex items-center justify-between">
-                    <span class="text-sm font-semibold text-white">{{ auth()->user()->name }}</span>
-                    <span class="text-xs font-mono text-[#94a3b8]">{{ auth()->user()->nik }}</span>
-                </div>
-                <nav aria-label="Navigasi seluler" class="flex flex-col gap-1.5">
+            <div id="mobileMenuPanel" class="hidden md:hidden border-t border-white/10 bg-[#0c1422] px-4 py-3 space-y-2">
+                <nav aria-label="Navigasi seluler" class="flex flex-col gap-1">
                     <a href="{{ route('dashboard') }}"
-                       class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold flex items-center {{ request()->routeIs('dashboard') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10' }}">
+                       class="min-h-[42px] px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center {{ request()->routeIs('dashboard') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10' }}">
                         Beranda
                     </a>
                     <a href="{{ route('rekap.pegawai') }}"
-                       class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold flex items-center {{ request()->routeIs('rekap.pegawai') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10' }}">
+                       class="min-h-[42px] px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center {{ request()->routeIs('rekap.pegawai') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10' }}">
                         Rekap Absensi Pegawai
                     </a>
                     <a href="{{ route('rekap.non-tetap') }}"
-                       class="min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold flex items-center {{ request()->routeIs('rekap.non-tetap') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10' }}">
+                       class="min-h-[42px] px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center {{ request()->routeIs('rekap.non-tetap') ? 'bg-[#38bdf8] text-[#070c16]' : 'text-[#cbd5e1] hover:bg-white/10' }}">
                         Rekap Capeg, Honor, PKWT, Kontrak
                     </a>
                 </nav>
-                <form action="{{ route('logout') }}" method="POST" class="pt-2 border-t border-white/10">
+                <form action="{{ route('logout') }}" method="POST" class="pt-2 border-t border-white/10 flex items-center justify-between">
+                    <span class="text-xs font-mono text-[#94a3b8]">{{ auth()->user()->nik }}</span>
                     @csrf
                     <button type="submit"
-                            class="w-full min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold text-left pusimpel-btn-ghost">
+                            class="min-h-[40px] px-4 py-1.5 rounded-xl text-xs font-semibold pusimpel-btn-ghost">
                         Keluar
                     </button>
                 </form>
@@ -109,22 +96,8 @@
     @endauth
 
     <main class="flex-1">
-        @if (session('status'))
-            <div class="no-print max-w-[1260px] mx-auto px-4 sm:px-6 pt-4">
-                <div role="status" class="rounded-2xl border px-4 py-2.5 text-sm font-semibold flex items-center gap-2.5 badge-em">
-                    <span>{{ session('status') }}</span>
-                </div>
-            </div>
-        @endif
-
         @yield('content')
     </main>
-
-    <footer class="no-print mt-10 border-t border-white/10">
-        <div class="max-w-[1260px] mx-auto px-4 sm:px-6 py-4 text-center text-xs text-[#94a3b8]">
-            Tirtafield DS · PERUMDA Air Minum Tirta Kepri
-        </div>
-    </footer>
 
     <script>
         (function () {

@@ -98,14 +98,14 @@ class AuthAndRecapTest extends TestCase
         $response->assertSee('13:02');
         $response->assertSee('16:10');
         $response->assertSee('DINAS LUAR KOTA');
-        $response->assertSee('Hadir Penuh');
+        $response->assertSee('Telat Masuk Siang');
         $response->assertSee('Cetak PDF');
         $response->assertDontSee('Ekspor CSV');
         $response->assertDontSee('Capeg Satu');
         $response->assertDontSee('Kontrak Satu');
     }
 
-    public function test_rekap_non_tetap_displays_capeg_honor_pkwt_kontrak_and_supports_sub_status_filter(): void
+    public function test_rekap_non_tetap_displays_all_non_tetap_personnel_without_sub_status_sort(): void
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
@@ -116,13 +116,8 @@ class AuthAndRecapTest extends TestCase
         $all->assertSee('PKWT Satu');
         $all->assertSee('Kontrak Satu');
         $all->assertSee('Izin Khusus');
+        $all->assertDontSee('Filter status pegawai');
         $all->assertDontSee('Pegawai Tetap Satu');
-
-        $capegOnly = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?sub_status=Capeg&bulan=11&tahun=2026');
-        $capegOnly->assertStatus(200);
-        $capegOnly->assertSee('Capeg Satu');
-        $capegOnly->assertDontSee('Honor Satu');
-        $capegOnly->assertDontSee('Kontrak Satu');
     }
 
     public function test_print_view_detail_json_and_csv_export_match_attendance_and_attendant(): void
@@ -131,7 +126,7 @@ class AuthAndRecapTest extends TestCase
 
         $printPage = $this->actingAs($user)->get('/rekap/pegawai/cetak?nik=020101&bulan=11&tahun=2026');
         $printPage->assertStatus(200);
-        $printPage->assertSee('Laporan Absensi Pegawai');
+        $printPage->assertSee('LAPORAN ABSENSI');
         $printPage->assertSee('Pegawai Tetap Satu');
         $printPage->assertSee('Tepat Waktu');
         $printPage->assertSee('DINAS LUAR KOTA');
@@ -188,6 +183,66 @@ class AuthAndRecapTest extends TestCase
         $this->assertStringContainsString('Pegawai Tetap Satu', $content);
         $this->assertStringContainsString('18/11/2026', $content);
         $this->assertStringContainsString('DINAS LUAR KOTA', $content);
+    }
+
+    public function test_fingerprint_takes_priority_over_tirtafield_hp_attendance_when_both_exist(): void
+    {
+        $user = User::where('nik', 'P242101')->firstOrFail();
+
+        // Pada 2026-11-17, K202609 absen di mesin fingerprint (hanya masuk 07:50) DAN absen di HP Tirtafield (08:40 - 17:15)
+        DB::table('table1')->insert([
+            'emp_id' => 6,
+            'dtgl' => '2026-11-17',
+            'inpresent' => '07:50:00',
+            'outpresent' => null,
+        ]);
+
+        DB::table('presensi')->insert([
+            [
+                'nik' => 'K202609',
+                'pgw_nama' => 'Kontrak Satu',
+                'tanggal' => '2026-11-17',
+                'slot_type' => 'masuk',
+                'waktu' => '2026-11-17 08:40:00',
+                'status' => 'Terlambat (25 Menit)',
+                'lokasi' => 'Lapangan A',
+                'approval_status' => 'approved',
+                'tipe_pengajuan' => 'dalamRadius',
+            ],
+            [
+                'nik' => 'K202609',
+                'pgw_nama' => 'Kontrak Satu',
+                'tanggal' => '2026-11-17',
+                'slot_type' => 'pulang',
+                'waktu' => '2026-11-17 17:15:00',
+                'status' => 'Tepat Waktu',
+                'lokasi' => 'Lapangan A',
+                'approval_status' => 'approved',
+                'tipe_pengajuan' => 'dalamRadius',
+            ],
+        ]);
+
+        $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-16&end_date=2026-11-18');
+        $detail->assertStatus(200)
+            ->assertJsonCount(3, 'data.logs')
+            // 2026-11-16: hanya absen HP -> pakai data HP (Tirtafield)
+            ->assertJsonPath('data.logs.0.tanggal', '2026-11-16')
+            ->assertJsonPath('data.logs.0.scan1', '08:45')
+            ->assertJsonPath('data.logs.0.scan4', '17:05')
+            ->assertJsonPath('data.logs.0.sumber', 'Tirtafield')
+            // 2026-11-17: absen mesin finger DAN absen HP -> pakai data mesin finger saja (tidak tercampur HP)
+            ->assertJsonPath('data.logs.1.tanggal', '2026-11-17')
+            ->assertJsonPath('data.logs.1.scan1', '07:50')
+            ->assertJsonPath('data.logs.1.scan4', '-')
+            ->assertJsonPath('data.logs.1.status_kehadiran', 'Belum Pulang')
+            ->assertJsonPath('data.logs.1.is_late', false)
+            ->assertJsonPath('data.logs.1.lokasi', 'Mesin Fingerprint')
+            ->assertJsonPath('data.logs.1.sumber', 'Attendance')
+            // 2026-11-18: hanya absen mesin finger -> pakai data mesin finger
+            ->assertJsonPath('data.logs.2.tanggal', '2026-11-18')
+            ->assertJsonPath('data.logs.2.scan1', '14:15')
+            ->assertJsonPath('data.logs.2.scan4', '22:05')
+            ->assertJsonPath('data.logs.2.sumber', 'Attendance');
     }
 
     public function test_user_can_logout(): void
