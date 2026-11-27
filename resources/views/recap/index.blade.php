@@ -271,14 +271,14 @@
                                     <td class="py-3 px-3.5 font-mono text-xs font-bold tabular-nums {{ $s2Class }}">{{ $log['scan2'] }}</td>
                                     <td class="py-3 px-3.5 font-mono text-xs font-bold tabular-nums {{ $s3Class }}">{{ $log['scan3'] }}</td>
                                     <td class="py-3 px-3.5 font-mono text-xs font-bold tabular-nums {{ $s4Class }}">{{ $log['scan4'] }}</td>
-                                    <td class="py-3 px-4 text-left whitespace-normal min-w-[210px]">
-                                        <div class="flex flex-wrap items-center gap-1.5">
+                                    <td class="py-3 px-4 text-left whitespace-nowrap">
+                                        <div class="inline-flex items-center gap-1.5">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $statusBadge }}">
                                                 {{ $log['status_kehadiran'] }}
                                             </span>
-                                            @if ($log['catatan'] !== '' && $log['catatan'] !== $log['status_kehadiran'])
-                                                <span class="text-xs font-semibold {{ ($log['is_late'] || ! empty($log['scan2_early'])) ? 'text-[#fda4af]' : 'text-[#94a3b8]' }}">
-                                                    {{ $log['catatan'] }}
+                                            @if (! empty($log['fp_notes']))
+                                                <span class="text-xs font-semibold text-[#fda4af]">
+                                                    {{ $log['fp_notes'] }}
                                                 </span>
                                             @endif
                                         </div>

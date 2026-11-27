@@ -571,6 +571,7 @@ class AttendanceRecapService
             }
 
             $notes = [];
+            $fpNotes = [];
             $isLate = false;
             $scan1Late = false;
             $scan2Early = false;
@@ -649,6 +650,7 @@ class AttendanceRecapService
                 'status_kehadiran' => $statusKehadiran,
                 'is_late' => $isLate,
                 'ketepatan' => $hasScan ? ($isLate ? 'Terlambat' : 'Tepat Waktu') : ($hasReason ? $statusKehadiran : '-'),
+                'fp_notes' => implode(', ', $fpNotes),
                 'lokasi' => $hasScan ? 'Mesin Fingerprint' : '-',
                 'catatan' => implode(' · ', array_values(array_unique(array_filter($notes)))),
                 'sumber' => implode(' + ', $sources),

@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 12mm;
+            margin: 8mm 10mm;
         }
         * {
             box-sizing: border-box;
@@ -17,20 +17,20 @@
             background: #e2e8f0;
             color: #111827;
             margin: 0;
-            padding: 16px;
-            font-size: 10pt;
-            line-height: 1.35;
+            padding: 14px;
+            font-size: 9pt;
+            line-height: 1.2;
         }
         .no-print-bar {
             max-width: 210mm;
-            margin: 0 auto 12px;
+            margin: 0 auto 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
             background: #0f172a;
             color: #f1f5f9;
-            padding: 10px 16px;
+            padding: 9px 14px;
             border-radius: 12px;
         }
         .no-print-bar .actions {
@@ -41,9 +41,9 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             background: rgba(255, 255, 255, 0.08);
             color: #f1f5f9;
-            padding: 8px 16px;
+            padding: 7px 14px;
             border-radius: 999px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
@@ -57,7 +57,7 @@
             max-width: 210mm;
             margin: 0 auto;
             background: #ffffff;
-            padding: 14mm 12mm;
+            padding: 8mm 10mm;
             border-radius: 6px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
             position: relative;
@@ -67,8 +67,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 260px;
-            opacity: 0.08;
+            width: 230px;
+            opacity: 0.07;
             pointer-events: none;
             z-index: 0;
         }
@@ -76,53 +76,69 @@
             position: relative;
             z-index: 1;
         }
-        .doc-title {
+        .doc-header {
             text-align: center;
-            margin: 0 0 14px;
-            font-size: 14pt;
+            margin-bottom: 8px;
+        }
+        .doc-title {
+            margin: 0;
+            font-size: 12pt;
             font-weight: 700;
             color: #0f172a;
         }
         .doc-subtitle {
-            text-align: center;
-            margin: -10px 0 16px;
-            font-size: 9.5pt;
+            margin: 2px 0 0;
+            font-size: 8.5pt;
             color: #475569;
         }
         .info-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 14px;
-            font-size: 9.5pt;
+            margin-bottom: 8px;
+            font-size: 8.5pt;
         }
         .info-table td {
-            padding: 2px 4px;
+            padding: 1.5px 4px;
             border: none;
-            vertical-align: top;
+            vertical-align: middle;
         }
         .info-label {
-            width: 110px;
+            width: 80px;
             font-weight: 700;
         }
         .info-sep {
-            width: 12px;
+            width: 10px;
         }
         .absensi-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 8.8pt;
+            font-size: 8pt;
+            table-layout: fixed;
+        }
+        .absensi-table tr {
+            page-break-inside: avoid;
         }
         .absensi-table th,
         .absensi-table td {
             border: 1px solid #1e293b;
-            padding: 5px 6px;
+            padding: 2.5px 4px;
             text-align: center;
             vertical-align: middle;
+            white-space: nowrap;
         }
         .absensi-table th {
             background-color: #e6e6e6;
             font-weight: 700;
             color: #0f172a;
+            padding: 4px;
+            font-size: 7.8pt;
+            line-height: 1.15;
+        }
+        .absensi-table td.col-ket {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 7.6pt;
+            font-weight: 700;
         }
         .row-libur td {
             color: #cc0000;
@@ -143,23 +159,22 @@
         .scan-muted {
             color: #6b7280;
         }
-        .ket-text {
-            font-size: 8.2pt;
-            font-weight: 700;
-        }
         .ket-danger {
             color: #dc2626;
-            font-style: italic;
+        }
+        .ket-muted {
+            color: #475569;
+            font-weight: 600;
         }
         .footer-grid {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 14px;
-            font-size: 8.5pt;
+            margin-top: 8px;
+            font-size: 7.5pt;
         }
         .footer-grid td {
             border: none;
-            padding: 2px 0;
+            padding: 1px 0;
             vertical-align: bottom;
         }
         @media print {
@@ -213,27 +228,27 @@
         @endif
 
         <div class="sheet-content">
-            <h1 class="doc-title">
-                {{ $category === \App\Services\AttendanceRecapService::CATEGORY_PEGAWAI ? 'Laporan Absensi Pegawai' : 'Laporan Absensi Capeg, Honor, PKWT & Kontrak' }}
-            </h1>
-            <p class="doc-subtitle">PERUMDA Air Minum Tirta Kepri</p>
+            <div class="doc-header">
+                <h1 class="doc-title">
+                    {{ $category === \App\Services\AttendanceRecapService::CATEGORY_PEGAWAI ? 'Laporan Absensi Pegawai' : 'Laporan Absensi Capeg, Honor, PKWT & Kontrak' }}
+                </h1>
+                <p class="doc-subtitle">PERUMDA Air Minum Tirta Kepri</p>
+            </div>
 
             @if ($person)
                 <table class="info-table">
                     <tr>
                         <td class="info-label">NIK</td>
                         <td class="info-sep">:</td>
-                        <td>{{ $person['nik'] }}</td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">Nama Pegawai</td>
-                        <td class="info-sep">:</td>
-                        <td>{{ $person['name'] }} ({{ $person['status_label'] }})</td>
-                    </tr>
-                    <tr>
+                        <td style="width: 45%;">{{ $person['nik'] }}</td>
                         <td class="info-label">Periode</td>
                         <td class="info-sep">:</td>
                         <td>{{ $recap['period_label'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Nama</td>
+                        <td class="info-sep">:</td>
+                        <td colspan="4">{{ $person['name'] }} ({{ $person['status_label'] }})</td>
                     </tr>
                 </table>
 
@@ -242,12 +257,12 @@
                         <tr>
                             <th style="width: 11%;">Tanggal</th>
                             <th style="width: 9%;">Hari</th>
-                            <th style="width: 11%;">Jadwal</th>
-                            <th style="width: 11%;">Scan Pagi<br>(Masuk)</th>
-                            <th style="width: 11%;">Scan Siang<br>(Keluar)</th>
-                            <th style="width: 11%;">Scan Siang<br>(Masuk)</th>
-                            <th style="width: 11%;">Scan Sore<br>(Pulang)</th>
-                            <th style="width: 25%;">Status / Keterangan</th>
+                            <th style="width: 12%;">Jadwal</th>
+                            <th style="width: 10%;">Masuk</th>
+                            <th style="width: 11%;">Keluar Siang</th>
+                            <th style="width: 11%;">Masuk Siang</th>
+                            <th style="width: 10%;">Pulang</th>
+                            <th style="width: 26%;">Status / Keterangan</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -258,6 +273,14 @@
                                 $s3Class = $log['scan3'] === '-' ? 'scan-muted' : (! empty($log['scan3_late']) ? 'scan-danger' : 'scan-ok');
                                 $s4Class = $log['scan4'] === '-' ? 'scan-muted' : 'scan-pulang';
                                 $jadwal = $log['jadwal_in'] !== '-' ? ($log['jadwal_in'].' - '.$log['jadwal_out']) : '-';
+
+                                $fpNote = trim((string) ($log['fp_notes'] ?? ''));
+                                $isDangerKet = $fpNote !== '' || $log['status_kehadiran'] === '(-)' || $log['is_libur'];
+                                if ($fpNote !== '') {
+                                    $ketSingleLine = $fpNote;
+                                } else {
+                                    $ketSingleLine = $log['status_kehadiran'];
+                                }
                             @endphp
                             <tr class="{{ $log['is_libur'] ? 'row-libur' : '' }}">
                                 <td>{{ \Carbon\Carbon::parse($log['tanggal'])->format('d/m/Y') }}</td>
@@ -267,13 +290,8 @@
                                 <td><span class="{{ $s2Class }}">{{ $log['scan2'] }}</span></td>
                                 <td><span class="{{ $s3Class }}">{{ $log['scan3'] }}</span></td>
                                 <td><span class="{{ $s4Class }}">{{ $log['scan4'] }}</span></td>
-                                <td>
-                                    <div class="ket-text">{{ $log['status_kehadiran'] }}</div>
-                                    @if ($log['catatan'] !== '' && $log['catatan'] !== $log['status_kehadiran'])
-                                        <div class="ket-text {{ ($log['is_late'] || ! empty($log['scan2_early'])) ? 'ket-danger' : '' }}">
-                                            {{ $log['catatan'] }}
-                                        </div>
-                                    @endif
+                                <td class="col-ket {{ $isDangerKet ? 'ket-danger' : ($log['has_scan'] ? '' : 'ket-muted') }}">
+                                    {{ $ketSingleLine }}
                                 </td>
                             </tr>
                         @empty
@@ -286,13 +304,13 @@
 
                 <table class="footer-grid">
                     <tr>
-                        <td style="width: 55%;">
-                            <strong>Keterangan Warna:</strong><br>
-                            <span style="color: #15803d; font-weight: 700;">Hijau</span> : Tepat Waktu<br>
-                            <span style="color: #dc2626; font-weight: 700;">Merah</span> : Terlambat / Pulang Kecepatan / Hari Libur
+                        <td style="width: 60%;">
+                            <strong>Keterangan:</strong>
+                            <span style="color: #15803d; font-weight: 700;">Hijau</span> = Tepat Waktu,
+                            <span style="color: #dc2626; font-weight: 700;">Merah</span> = Terlambat / Pulang Cepat / Libur
                         </td>
-                        <td style="width: 45%; text-align: right;">
-                            <em>Dicetak oleh Pusimpel Tirta Kepri · {{ $printedDate }}</em>
+                        <td style="width: 40%; text-align: right;">
+                            <em>Pusimpel Tirta Kepri · {{ $printedDate }}</em>
                         </td>
                     </tr>
                 </table>

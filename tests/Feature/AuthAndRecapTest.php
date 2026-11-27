@@ -133,8 +133,9 @@ class AuthAndRecapTest extends TestCase
         $printPage->assertStatus(200);
         $printPage->assertSee('Laporan Absensi Pegawai');
         $printPage->assertSee('Pegawai Tetap Satu');
-        $printPage->assertSee('Keterangan Warna');
+        $printPage->assertSee('Tepat Waktu');
         $printPage->assertSee('DINAS LUAR KOTA');
+        $printPage->assertDontSee('SPT ke Batam');
 
         // K202609 has Shift Siang on 2026-11-18 (14:15 - 22:05)
         $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-18&end_date=2026-11-18');
