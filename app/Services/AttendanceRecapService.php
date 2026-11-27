@@ -8,6 +8,8 @@ use App\Models\Presensi;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AttendanceRecapService
 {
@@ -21,7 +23,7 @@ class AttendanceRecapService
     public const NON_TETAP_STATUSES = ['Capeg', 'Honor', 'PKWT', 'Kontrak'];
 
     /**
-     * Hitung ringkasan jumlah personil dan presensi bulan berjalan untuk halaman utama.
+     * Hitung ringkasan jumlah personil dan kehadiran bulan berjalan untuk halaman utama.
      *
      * @return array{
      *     pegawai_count: int,
@@ -47,33 +49,14 @@ class AttendanceRecapService
             $breakdown[$status] = $nonTetap->where('status_label', $status)->count();
         }
 
-        $pegawaiNiks = $pegawai->pluck('nik')->all();
-        $nonTetapNiks = $nonTetap->pluck('nik')->all();
-
-        $pegawaiPresensiCount = empty($pegawaiNiks)
-            ? 0
-            : Presensi::query()
-                ->whereIn('nik', $pegawaiNiks)
-                ->whereBetween('tanggal', [$periodStart, $periodEnd])
-                ->distinct('nik')
-                ->count('nik');
-
-        $nonTetapPresensiCount = empty($nonTetapNiks)
-            ? 0
-            : Presensi::query()
-                ->whereIn('nik', $nonTetapNiks)
-                ->whereBetween('tanggal', [$periodStart, $periodEnd])
-                ->distinct('nik')
-                ->count('nik');
-
         return [
             'pegawai_count' => $pegawai->count(),
             'non_tetap_count' => $nonTetap->count(),
             'non_tetap_breakdown' => $breakdown,
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
-            'pegawai_presensi_count' => $pegawaiPresensiCount,
-            'non_tetap_presensi_count' => $nonTetapPresensiCount,
+            'pegawai_presensi_count' => $this->countPresentPersonnel($pegawai, $periodStart, $periodEnd),
+            'non_tetap_presensi_count' => $this->countPresentPersonnel($nonTetap, $periodStart, $periodEnd),
         ];
     }
 
@@ -120,6 +103,7 @@ class AttendanceRecapService
             $officeName = $matchedUser?->office_name ?: ($employee->office_name ?: 'Kantor Pusat PERUMDA Tirta Kepri');
 
             $records->push([
+                'pgw_id' => (int) $employee->pgw_id,
                 'nik' => $nup,
                 'name' => trim((string) $employee->pgw_nama),
                 'status_label' => $employee->statusLabel(),
@@ -147,6 +131,7 @@ class AttendanceRecapService
             }
 
             $records->push([
+                'pgw_id' => null,
                 'nik' => trim((string) $user->nik),
                 'name' => trim((string) $user->name),
                 'status_label' => $userClassification['status_label'],
@@ -163,7 +148,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Bangun data rekap lengkap untuk halaman rekap dan ekspor CSV.
+     * Bangun data rekap terpadu dari attendance, attendant, dan tirtafield.
      *
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
@@ -213,105 +198,70 @@ class AttendanceRecapService
             return true;
         })->values();
 
-        $nikList = $filteredPersonnel->pluck('nik')->all();
+        $dailyRecords = $this->fetchUnifiedDailyRecords($filteredPersonnel, $startDate, $endDate);
+        $recordsByNik = $dailyRecords->groupBy(fn (array $item): string => strtoupper($item['nik']));
 
-        $presensiRecords = empty($nikList)
-            ? collect()
-            : Presensi::query()
-                ->whereIn('nik', $nikList)
-                ->whereBetween('tanggal', [$startDate, $endDate])
-                ->orderBy('tanggal', 'desc')
-                ->orderBy('waktu', 'desc')
-                ->get();
-
-        $presensiByNik = $presensiRecords->groupBy(fn (Presensi $item): string => strtoupper(trim((string) $item->nik)));
-        $personnelMap = $filteredPersonnel->keyBy(fn (array $person): string => strtoupper(trim((string) $person['nik'])));
-
-        $rows = $filteredPersonnel->map(function (array $person) use ($presensiByNik): array {
+        $rows = $filteredPersonnel->map(function (array $person) use ($recordsByNik): array {
             $upperNik = strtoupper(trim((string) $person['nik']));
-            /** @var Collection<int, Presensi> $logs */
-            $logs = $presensiByNik->get($upperNik, collect());
+            /** @var Collection<int, array<string, mixed>> $logs */
+            $logs = $recordsByNik->get($upperNik, collect());
 
-            $distinctDates = $logs
-                ->map(fn (Presensi $p): string => $p->tanggal ? $p->tanggal->format('Y-m-d') : '')
-                ->filter()
-                ->unique();
+            $scanLogs = $logs->filter(fn (array $log): bool => $log['has_scan']);
+            $izinLogs = $logs->filter(fn (array $log): bool => ! $log['has_scan'] && $log['has_reason']);
 
-            $masukLogs = $logs->filter(fn (Presensi $p): bool => $p->normalizedSlot() === 'masuk');
-            $tepatWaktuCount = $masukLogs->filter(fn (Presensi $p): bool => ! $p->isLate())->count();
-            $terlambatCount = $masukLogs->filter(fn (Presensi $p): bool => $p->isLate())->count();
+            $masukCount = $scanLogs->filter(fn (array $log): bool => $log['scan1'] !== '-')->count();
+            $siangKeluarCount = $scanLogs->filter(fn (array $log): bool => $log['scan2'] !== '-')->count();
+            $siangMasukCount = $scanLogs->filter(fn (array $log): bool => $log['scan3'] !== '-')->count();
+            $pulangCount = $scanLogs->filter(fn (array $log): bool => $log['scan4'] !== '-')->count();
 
-            $approvedCount = $logs->filter(fn (Presensi $p): bool => strtolower((string) $p->approval_status) === 'approved')->count();
-            $pendingCount = $logs->filter(fn (Presensi $p): bool => strtolower((string) $p->approval_status) === 'pending' || empty($p->approval_status))->count();
-            $rejectedCount = $logs->filter(fn (Presensi $p): bool => strtolower((string) $p->approval_status) === 'rejected')->count();
+            $hadirPenuhCount = $scanLogs->filter(fn (array $log): bool => $log['scan1'] !== '-' && $log['scan4'] !== '-')->count();
+            $belumPulangCount = $scanLogs->filter(fn (array $log): bool => $log['scan1'] !== '-' && $log['scan4'] === '-')->count();
+
+            $tepatWaktuCount = $scanLogs->filter(fn (array $log): bool => ! $log['is_late'])->count();
+            $terlambatCount = $scanLogs->filter(fn (array $log): bool => $log['is_late'])->count();
 
             $latestLog = $logs->first();
-            $latestMasuk = $masukLogs->first();
 
             return array_merge($person, [
-                'hari_hadir' => $distinctDates->count(),
+                'hari_hadir' => $scanLogs->count(),
+                'hadir_penuh_count' => $hadirPenuhCount,
+                'belum_pulang_count' => $belumPulangCount,
+                'izin_count' => $izinLogs->count(),
                 'total_log' => $logs->count(),
-                'masuk_count' => $masukLogs->count(),
-                'istirahat_keluar_count' => $logs->filter(fn (Presensi $p): bool => $p->normalizedSlot() === 'istirahatKeluar')->count(),
-                'istirahat_masuk_count' => $logs->filter(fn (Presensi $p): bool => $p->normalizedSlot() === 'istirahatMasuk')->count(),
-                'pulang_count' => $logs->filter(fn (Presensi $p): bool => $p->normalizedSlot() === 'pulang')->count(),
+                'masuk_count' => $masukCount,
+                'istirahat_keluar_count' => $siangKeluarCount,
+                'istirahat_masuk_count' => $siangMasukCount,
+                'pulang_count' => $pulangCount,
                 'tepat_waktu_count' => $tepatWaktuCount,
                 'terlambat_count' => $terlambatCount,
-                'approved_count' => $approvedCount,
-                'pending_count' => $pendingCount,
-                'rejected_count' => $rejectedCount,
-                'last_punch_date' => $latestLog?->tanggal?->format('Y-m-d'),
-                'last_punch_time' => $latestLog?->formattedWaktu(),
-                'last_masuk_time' => $latestMasuk?->formattedWaktu(),
-                'last_status' => $latestMasuk?->status ?? $latestLog?->status,
+                'last_punch_date' => $latestLog['tanggal'] ?? null,
+                'last_status' => $latestLog['status_kehadiran'] ?? null,
             ]);
         });
 
         if ($attendanceFilter === 'present') {
-            $rows = $rows->filter(fn (array $row): bool => $row['total_log'] > 0)->values();
+            $rows = $rows->filter(fn (array $row): bool => $row['hari_hadir'] > 0)->values();
         } elseif ($attendanceFilter === 'absent') {
-            $rows = $rows->filter(fn (array $row): bool => $row['total_log'] === 0)->values();
+            $rows = $rows->filter(fn (array $row): bool => $row['hari_hadir'] === 0 && $row['izin_count'] === 0)->values();
         } elseif ($attendanceFilter === 'late') {
             $rows = $rows->filter(fn (array $row): bool => $row['terlambat_count'] > 0)->values();
+        } elseif ($attendanceFilter === 'reason') {
+            $rows = $rows->filter(fn (array $row): bool => $row['izin_count'] > 0)->values();
         }
 
         $visibleNiks = $rows->pluck('nik')->map(fn (string $n): string => strtoupper($n))->all();
-        $dailyLogs = $presensiRecords
-            ->filter(fn (Presensi $p): bool => in_array(strtoupper(trim((string) $p->nik)), $visibleNiks, true))
-            ->map(function (Presensi $p) use ($personnelMap): array {
-                $person = $personnelMap->get(strtoupper(trim((string) $p->nik)));
-
-                return [
-                    'id' => $p->id,
-                    'nik' => $p->nik,
-                    'name' => $person['name'] ?? $p->pgw_nama ?? '-',
-                    'status_label' => $person['status_label'] ?? '-',
-                    'department' => $person['department'] ?? '-',
-                    'tanggal' => $p->tanggal?->format('Y-m-d') ?? '-',
-                    'slot' => $p->slotLabel(),
-                    'slot_key' => $p->normalizedSlot(),
-                    'waktu' => $p->formattedWaktu(),
-                    'status' => $p->status ?: 'Tepat Waktu',
-                    'is_late' => $p->isLate(),
-                    'approval_status' => strtolower((string) ($p->approval_status ?: 'pending')),
-                    'approval_label' => $p->approvalLabel(),
-                    'radius_label' => $p->radiusLabel(),
-                    'lokasi' => $p->lokasi ?: '-',
-                    'catatan' => $p->catatan ?: '',
-                    'reviewed_by' => $p->reviewed_by ?: '',
-                ];
-            })
+        $dailyLogs = $dailyRecords
+            ->filter(fn (array $log): bool => in_array(strtoupper($log['nik']), $visibleNiks, true))
             ->values();
 
         $summary = [
             'total_personil' => $rows->count(),
-            'personil_hadir' => $rows->filter(fn (array $row): bool => $row['total_log'] > 0)->count(),
+            'personil_hadir' => $rows->filter(fn (array $row): bool => $row['hari_hadir'] > 0)->count(),
             'total_hari_hadir' => $rows->sum('hari_hadir'),
+            'total_hadir_penuh' => $rows->sum('hadir_penuh_count'),
+            'total_izin' => $rows->sum('izin_count'),
             'total_tepat_waktu' => $rows->sum('tepat_waktu_count'),
             'total_terlambat' => $rows->sum('terlambat_count'),
-            'total_approved' => $rows->sum('approved_count'),
-            'total_pending' => $rows->sum('pending_count'),
-            'total_rejected' => $rows->sum('rejected_count'),
             'total_log' => $rows->sum('total_log'),
         ];
 
@@ -346,7 +296,7 @@ class AttendanceRecapService
     }
 
     /**
-     * Ambil rincian log presensi untuk satu pegawai pada modal detail.
+     * Ambil rincian log kehadiran harian satu pegawai dari ketiga sumber.
      *
      * @return array<string, mixed>|null
      */
@@ -367,28 +317,7 @@ class AttendanceRecapService
             return null;
         }
 
-        $logs = Presensi::query()
-            ->where('nik', $person['nik'])
-            ->whereBetween('tanggal', [$start, $end])
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('waktu', 'asc')
-            ->get()
-            ->map(fn (Presensi $p): array => [
-                'id' => $p->id,
-                'tanggal' => $p->tanggal?->format('Y-m-d') ?? '-',
-                'slot' => $p->slotLabel(),
-                'slot_key' => $p->normalizedSlot(),
-                'waktu' => $p->formattedWaktu(),
-                'status' => $p->status ?: 'Tepat Waktu',
-                'is_late' => $p->isLate(),
-                'approval_status' => strtolower((string) ($p->approval_status ?: 'pending')),
-                'approval_label' => $p->approvalLabel(),
-                'radius_label' => $p->radiusLabel(),
-                'lokasi' => $p->lokasi ?: '-',
-                'catatan' => $p->catatan ?: '',
-                'reviewed_by' => $p->reviewed_by ?: '',
-            ])
-            ->values();
+        $logs = $this->fetchUnifiedDailyRecords(collect([$person]), $start, $end)->values();
 
         return [
             'person' => $person,
@@ -398,6 +327,534 @@ class AttendanceRecapService
             ],
             'logs' => $logs,
         ];
+    }
+
+    /**
+     * Tarik dan gabungkan rekap harian dari table1/tempdatascan (attendance),
+     * attendant+reason (attendant), dan presensi (tirtafield).
+     *
+     * @param  Collection<int, array<string, mixed>>  $personnel
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function fetchUnifiedDailyRecords(Collection $personnel, string $startDate, string $endDate): Collection
+    {
+        if ($personnel->isEmpty()) {
+            return collect();
+        }
+
+        $niks = $personnel->pluck('nik')->filter()->unique()->values()->all();
+        $empIds = $personnel->pluck('pgw_id')->filter(fn ($id): bool => ! empty($id))->unique()->values()->all();
+
+        $personByNik = $personnel->keyBy(fn (array $p): string => strtoupper(trim((string) $p['nik'])));
+        $personByEmpId = $personnel
+            ->filter(fn (array $p): bool => ! empty($p['pgw_id']))
+            ->keyBy(fn (array $p): int => (int) $p['pgw_id']);
+
+        $table1Map = [];
+        $midScanMap = [];
+        $attendantMap = [];
+
+        $kepegConn = $this->kepegawaianConnectionName();
+
+        try {
+            if (! empty($empIds) && Schema::connection($kepegConn)->hasTable('table1')) {
+                $table1Rows = DB::connection($kepegConn)
+                    ->table('table1')
+                    ->select(['emp_id', 'dtgl', 'inpresent', 'outpresent'])
+                    ->whereIn('emp_id', $empIds)
+                    ->whereBetween('dtgl', [$startDate, $endDate])
+                    ->where(function ($query): void {
+                        $query->where(function ($q): void {
+                            $q->whereNotNull('inpresent')->where('inpresent', '!=', '00:00:00')->where('inpresent', '!=', '');
+                        })->orWhere(function ($q): void {
+                            $q->whereNotNull('outpresent')->where('outpresent', '!=', '00:00:00')->where('outpresent', '!=', '');
+                        });
+                    })
+                    ->get();
+
+                foreach ($table1Rows as $row) {
+                    $person = $personByEmpId->get((int) $row->emp_id);
+                    if (! $person) {
+                        continue;
+                    }
+                    $dateKey = substr((string) $row->dtgl, 0, 10);
+                    $key = strtoupper($person['nik']).'|'.$dateKey;
+                    $table1Map[$key] = [
+                        'inpresent' => $this->normalizeTime((string) ($row->inpresent ?? '')),
+                        'outpresent' => $this->normalizeTime((string) ($row->outpresent ?? '')),
+                    ];
+                }
+            }
+
+            if (Schema::connection($kepegConn)->hasTable('tempdatascan')) {
+                $scanUserIds = array_values(array_unique(array_merge(
+                    array_map('strval', $empIds),
+                    $niks
+                )));
+
+                if (! empty($scanUserIds)) {
+                    $scanRows = DB::connection($kepegConn)
+                        ->table('tempdatascan')
+                        ->select(['userid', 'checkdate', 'checktime'])
+                        ->whereIn('userid', $scanUserIds)
+                        ->whereBetween('checkdate', [$startDate, $endDate])
+                        ->orderBy('checkdate', 'asc')
+                        ->orderBy('checktime', 'asc')
+                        ->get();
+
+                    foreach ($scanRows as $row) {
+                        $rawUser = trim((string) $row->userid);
+                        $person = $personByNik->get(strtoupper($rawUser));
+                        if (! $person && ctype_digit($rawUser)) {
+                            $person = $personByEmpId->get((int) $rawUser);
+                        }
+                        if (! $person) {
+                            continue;
+                        }
+
+                        $dateKey = substr((string) $row->checkdate, 0, 10);
+                        $jam = $this->normalizeTime((string) $row->checktime);
+                        if ($jam === '-') {
+                            continue;
+                        }
+
+                        $key = strtoupper($person['nik']).'|'.$dateKey;
+                        $midScanMap[$key][] = $jam;
+                    }
+                }
+            }
+
+            if (! empty($empIds) && Schema::connection($kepegConn)->hasTable('attendant')) {
+                $attQuery = DB::connection($kepegConn)
+                    ->table('attendant as a')
+                    ->whereIn('a.emp_id', $empIds)
+                    ->whereBetween('a.att_date', [$startDate, $endDate]);
+
+                if (Schema::connection($kepegConn)->hasTable('reason')) {
+                    $attQuery->leftJoin('reason as r', 'a.reason_id', '=', 'r.idx')
+                        ->select(['a.emp_id', 'a.att_date', 'a.keterangan', 'r.re_desc']);
+                } else {
+                    $attQuery->select(['a.emp_id', 'a.att_date', 'a.keterangan', DB::raw('NULL as re_desc')]);
+                }
+
+                foreach ($attQuery->get() as $row) {
+                    $person = $personByEmpId->get((int) $row->emp_id);
+                    if (! $person) {
+                        continue;
+                    }
+                    $dateKey = substr((string) $row->att_date, 0, 10);
+                    $key = strtoupper($person['nik']).'|'.$dateKey;
+                    $attendantMap[$key] = [
+                        'reason' => $this->normalizeAttendantReason((string) ($row->re_desc ?? '')),
+                        'notes' => trim((string) ($row->keterangan ?? '')),
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+            // Tetap kembalikan data dari Tirtafield bila koneksi kepri_kepegawaian sedang tidak tersedia
+        }
+
+        $tirtafieldMap = [];
+        if (! empty($niks)) {
+            $presensiRows = Presensi::query()
+                ->whereIn('nik', $niks)
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->orderBy('tanggal', 'asc')
+                ->orderBy('waktu', 'asc')
+                ->get();
+
+            foreach ($presensiRows as $row) {
+                $dateKey = $row->tanggal ? $row->tanggal->format('Y-m-d') : '';
+                if ($dateKey === '') {
+                    continue;
+                }
+                $key = strtoupper(trim((string) $row->nik)).'|'.$dateKey;
+                $slot = $row->normalizedSlot();
+
+                if (! isset($tirtafieldMap[$key])) {
+                    $tirtafieldMap[$key] = [
+                        'masuk' => '-',
+                        'istirahatKeluar' => '-',
+                        'istirahatMasuk' => '-',
+                        'pulang' => '-',
+                        'is_late' => false,
+                        'notes' => [],
+                        'locations' => [],
+                    ];
+                }
+
+                $tirtafieldMap[$key][$slot] = $row->formattedWaktu();
+                if ($slot === 'masuk' && $row->isLate()) {
+                    $tirtafieldMap[$key]['is_late'] = true;
+                    $tirtafieldMap[$key]['notes'][] = $row->status ?: 'Terlambat';
+                }
+                if (! empty($row->catatan)) {
+                    $tirtafieldMap[$key]['notes'][] = trim((string) $row->catatan);
+                }
+                if (! empty($row->lokasi)) {
+                    $tirtafieldMap[$key]['locations'][] = trim((string) $row->lokasi);
+                }
+            }
+        }
+
+        $allKeys = array_values(array_unique(array_merge(
+            array_keys($table1Map),
+            array_keys($attendantMap),
+            array_keys($tirtafieldMap)
+        )));
+
+        $unified = collect();
+
+        foreach ($allKeys as $key) {
+            [$upperNik, $dateKey] = explode('|', $key, 2);
+            $person = $personByNik->get($upperNik);
+            if (! $person) {
+                continue;
+            }
+
+            $t1 = $table1Map[$key] ?? null;
+            $rawMidScans = array_values(array_unique($midScanMap[$key] ?? []));
+            $att = $attendantMap[$key] ?? null;
+            $tf = $tirtafieldMap[$key] ?? null;
+
+            $carbonDate = Carbon::parse($dateKey);
+            $hariIndo = $this->hariIndonesia($carbonDate->format('l'));
+            $isWeekend = in_array($hariIndo, ['Sabtu', 'Minggu'], true);
+
+            $scan1 = $t1['inpresent'] ?? '-';
+            $scan4 = $t1['outpresent'] ?? '-';
+
+            if ($scan1 === '-' && $tf !== null && $tf['masuk'] !== '-') {
+                $scan1 = $tf['masuk'];
+            }
+            if ($scan4 === '-' && $tf !== null && $tf['pulang'] !== '-') {
+                $scan4 = $tf['pulang'];
+            }
+
+            [$scan2, $scan3, $isShift] = $this->resolveMiddayScans($scan1, $scan4, $rawMidScans, $isWeekend);
+
+            if ($scan2 === '-' && $tf !== null && $tf['istirahatKeluar'] !== '-') {
+                $scan2 = $tf['istirahatKeluar'];
+            }
+            if ($scan3 === '-' && $tf !== null && $tf['istirahatMasuk'] !== '-') {
+                $scan3 = $tf['istirahatMasuk'];
+            }
+
+            $hasScan = ($scan1 !== '-' || $scan2 !== '-' || $scan3 !== '-' || $scan4 !== '-');
+            $hasReason = $att !== null && ($att['reason'] !== '' || $att['notes'] !== '');
+
+            if (! $hasScan && ! $hasReason) {
+                continue;
+            }
+
+            $sources = [];
+            if ($t1 !== null) {
+                $sources[] = 'Attendance';
+            }
+            if ($hasReason) {
+                $sources[] = 'Attendant';
+            }
+            if ($tf !== null) {
+                $sources[] = 'Tirtafield';
+            }
+
+            $notes = [];
+            $isLate = false;
+
+            if ($hasScan) {
+                if ($scan1 !== '-' && $scan4 !== '-') {
+                    $statusKehadiran = $isWeekend ? 'Hadir (Hari Libur)' : 'Hadir Penuh';
+                } elseif ($scan1 !== '-' && $scan4 === '-') {
+                    $statusKehadiran = 'Belum Pulang';
+                } elseif ($scan1 === '-' && $scan4 !== '-') {
+                    $statusKehadiran = 'Pulang Saja';
+                } else {
+                    $statusKehadiran = 'Scan Siang';
+                }
+
+                if ($t1 !== null && ! $isWeekend) {
+                    [$fpLate, $fpNotes] = $this->evaluateFingerprintPunctuality($scan1, $scan2, $scan3, $scan4, $hariIndo, $isShift);
+                    if ($fpLate) {
+                        $isLate = true;
+                    }
+                    $notes = array_merge($notes, $fpNotes);
+                }
+
+                if ($tf !== null) {
+                    if ($tf['is_late']) {
+                        $isLate = true;
+                    }
+                    $notes = array_merge($notes, $tf['notes']);
+                }
+
+                if ($att !== null && $att['reason'] !== '') {
+                    $notes[] = $att['reason'].($att['notes'] !== '' ? ': '.$att['notes'] : '');
+                }
+            } else {
+                $statusKehadiran = $att['reason'] !== '' ? $att['reason'] : 'Keterangan';
+                if ($att['notes'] !== '') {
+                    $notes[] = $att['notes'];
+                }
+            }
+
+            $lokasi = ($tf !== null && ! empty($tf['locations']))
+                ? implode(', ', array_unique($tf['locations']))
+                : ($t1 !== null ? 'Mesin Fingerprint' : $person['office_name']);
+
+            $unified->push([
+                'nik' => $person['nik'],
+                'name' => $person['name'],
+                'status_label' => $person['status_label'],
+                'department' => $person['department'],
+                'tanggal' => $dateKey,
+                'hari' => $hariIndo,
+                'scan1' => $scan1,
+                'scan2' => $scan2,
+                'scan3' => $scan3,
+                'scan4' => $scan4,
+                'has_scan' => $hasScan,
+                'has_reason' => $hasReason,
+                'status_kehadiran' => $statusKehadiran,
+                'is_late' => $isLate,
+                'ketepatan' => $hasScan ? ($isLate ? 'Terlambat' : 'Tepat Waktu') : 'Keterangan',
+                'lokasi' => $lokasi,
+                'catatan' => implode(' · ', array_values(array_unique(array_filter($notes)))),
+                'sumber' => implode(' + ', $sources),
+            ]);
+        }
+
+        return $unified->sort(function (array $a, array $b): int {
+            $cmpDate = strcmp($b['tanggal'], $a['tanggal']);
+            if ($cmpDate !== 0) {
+                return $cmpDate;
+            }
+
+            return strcasecmp($a['name'], $b['name']);
+        })->values();
+    }
+
+    /**
+     * Hitung jumlah personil unik yang memiliki catatan scan/kehadiran pada rentang tanggal.
+     *
+     * @param  Collection<int, array<string, mixed>>  $personnel
+     */
+    private function countPresentPersonnel(Collection $personnel, string $startDate, string $endDate): int
+    {
+        if ($personnel->isEmpty()) {
+            return 0;
+        }
+
+        $presentNiks = [];
+        $niks = $personnel->pluck('nik')->filter()->unique()->values()->all();
+        $empIds = $personnel->pluck('pgw_id')->filter(fn ($id): bool => ! empty($id))->unique()->values()->all();
+        $nikByEmpId = $personnel
+            ->filter(fn (array $p): bool => ! empty($p['pgw_id']))
+            ->mapWithKeys(fn (array $p): array => [(int) $p['pgw_id'] => strtoupper($p['nik'])])
+            ->all();
+
+        $kepegConn = $this->kepegawaianConnectionName();
+
+        try {
+            if (! empty($empIds) && Schema::connection($kepegConn)->hasTable('table1')) {
+                $matchedEmpIds = DB::connection($kepegConn)
+                    ->table('table1')
+                    ->whereIn('emp_id', $empIds)
+                    ->whereBetween('dtgl', [$startDate, $endDate])
+                    ->where(function ($query): void {
+                        $query->where(function ($q): void {
+                            $q->whereNotNull('inpresent')->where('inpresent', '!=', '00:00:00')->where('inpresent', '!=', '');
+                        })->orWhere(function ($q): void {
+                            $q->whereNotNull('outpresent')->where('outpresent', '!=', '00:00:00')->where('outpresent', '!=', '');
+                        });
+                    })
+                    ->distinct()
+                    ->pluck('emp_id');
+
+                foreach ($matchedEmpIds as $empId) {
+                    if (isset($nikByEmpId[(int) $empId])) {
+                        $presentNiks[$nikByEmpId[(int) $empId]] = true;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Abaikan jika koneksi kepegawaian tidak dapat dijangkau
+        }
+
+        if (! empty($niks)) {
+            $tfNiks = Presensi::query()
+                ->whereIn('nik', $niks)
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->distinct()
+                ->pluck('nik');
+
+            foreach ($tfNiks as $nik) {
+                $presentNiks[strtoupper(trim((string) $nik))] = true;
+            }
+        }
+
+        return count($presentNiks);
+    }
+
+    /**
+     * Pisahkan scan siang keluar & masuk sesuai aturan deteksi shift di attendance/index.php.
+     *
+     * @param  list<string>  $scansToday
+     * @return array{0: string, 1: string, 2: bool}
+     */
+    private function resolveMiddayScans(string $scan1, string $scan4, array $scansToday, bool $isWeekend): array
+    {
+        $tScan1 = $scan1 !== '-' ? strtotime($scan1) : false;
+        $tScan4 = $scan4 !== '-' ? strtotime($scan4) : false;
+
+        $isShiftPagi = ($tScan1 !== false && $tScan1 <= strtotime('08:00') && $tScan4 !== false && $tScan4 >= strtotime('13:30') && $tScan4 <= strtotime('15:30'));
+        $isShiftSiang = ($tScan1 !== false && (
+            ($tScan1 >= strtotime('13:00') && $tScan1 < strtotime('18:00')) ||
+            ($tScan1 >= strtotime('12:00') && $tScan1 < strtotime('13:00') && $tScan4 !== false && $tScan4 >= strtotime('20:00'))
+        ));
+        $isShiftMalam = ($tScan1 !== false && $tScan1 >= strtotime('18:00'));
+        $isShiftTrans = ($tScan4 !== false && $tScan4 >= strtotime('20:00'));
+        $isShift = ($isShiftPagi || $isShiftSiang || $isShiftMalam || $isShiftTrans);
+
+        $scan2 = '-';
+        $scan3 = '-';
+
+        if (! $isWeekend && ! empty($scansToday)) {
+            $midScans = [];
+            foreach ($scansToday as $jamStr) {
+                $time = strtotime($jamStr);
+                if ($time !== false && $time >= strtotime('11:00') && $time < strtotime('15:30')) {
+                    if ($isShift) {
+                        if ($tScan1 !== false && abs($time - $tScan1) <= 900) {
+                            continue;
+                        }
+                        if ($tScan4 !== false && abs($time - $tScan4) <= 900) {
+                            continue;
+                        }
+                    }
+                    $midScans[] = $jamStr;
+                }
+            }
+
+            $countMid = count($midScans);
+            if ($countMid === 1) {
+                if (strtotime($midScans[0]) < strtotime('13:00')) {
+                    $scan2 = $midScans[0];
+                } else {
+                    $scan3 = $midScans[0];
+                }
+            } elseif ($countMid >= 2) {
+                $scan2 = $midScans[0];
+                $scan3 = $midScans[1];
+            }
+        }
+
+        return [$scan2, $scan3, $isShift];
+    }
+
+    /**
+     * Evaluasi keterlambatan scan fingerprint sesuai aturan attendance/index.php.
+     *
+     * @return array{0: bool, 1: list<string>}
+     */
+    private function evaluateFingerprintPunctuality(string $scan1, string $scan2, string $scan3, string $scan4, string $hariIndo, bool $isShift): array
+    {
+        $isLate = false;
+        $notes = [];
+
+        $tScan1 = $scan1 !== '-' ? strtotime($scan1) : false;
+        $tScan4 = $scan4 !== '-' ? strtotime($scan4) : false;
+
+        $isShiftSiang = ($tScan1 !== false && (
+            ($tScan1 >= strtotime('13:00') && $tScan1 < strtotime('18:00')) ||
+            ($tScan1 >= strtotime('12:00') && $tScan1 < strtotime('13:00') && $tScan4 !== false && $tScan4 >= strtotime('20:00'))
+        ));
+        $isShiftMalam = ($tScan1 !== false && $tScan1 >= strtotime('18:00'));
+
+        if ($tScan1 !== false) {
+            if ($isShiftSiang) {
+                if ($tScan1 > strtotime('14:00')) {
+                    $isLate = true;
+                    $notes[] = 'Telat Masuk Shift Siang';
+                }
+            } elseif ($isShiftMalam) {
+                if ($tScan1 > strtotime('22:00')) {
+                    $isLate = true;
+                    $notes[] = 'Telat Masuk Shift Malam';
+                }
+            } elseif ($tScan1 > strtotime('08:00')) {
+                $isLate = true;
+                $notes[] = 'Telat Masuk Pagi';
+            }
+        }
+
+        if (! $isShift) {
+            if ($scan2 !== '-') {
+                $limitKeluar = $hariIndo === 'Jumat' ? strtotime('11:30') : strtotime('12:00');
+                if (strtotime($scan2) < $limitKeluar) {
+                    $notes[] = 'Cepat Keluar Siang';
+                }
+            }
+
+            if ($scan3 !== '-' && strtotime($scan3) > strtotime('13:00')) {
+                $notes[] = 'Telat Masuk Siang';
+            }
+        }
+
+        return [$isLate, $notes];
+    }
+
+    /**
+     * Normalisasi kode alasan dari tabel reason milik attendant.
+     */
+    private function normalizeAttendantReason(string $raw): string
+    {
+        $trimmed = trim($raw);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        if (in_array($trimmed, ['25', '25%', '21', 'k25', 'K25'], true)) {
+            return 'Izin Khusus';
+        }
+
+        return $trimmed;
+    }
+
+    private function normalizeTime(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '' || $trimmed === '00:00:00' || $trimmed === '0000-00-00 00:00:00') {
+            return '-';
+        }
+
+        try {
+            return Carbon::parse($trimmed)->format('H:i');
+        } catch (\Throwable) {
+            if (preg_match('/(\d{2}:\d{2})/', $trimmed, $matches)) {
+                return $matches[1];
+            }
+
+            return '-';
+        }
+    }
+
+    private function hariIndonesia(string $dayEnglish): string
+    {
+        return match ($dayEnglish) {
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            default => $dayEnglish,
+        };
+    }
+
+    private function kepegawaianConnectionName(): string
+    {
+        return (string) config('database.kepegawaian_connection', 'kepegawaian');
     }
 
     /**

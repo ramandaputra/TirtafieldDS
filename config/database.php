@@ -19,6 +19,8 @@ return [
 
     'default' => env('DB_CONNECTION', 'sqlite'),
 
+    'kepegawaian_connection' => env('DB_KEPEGAWAIAN_CONNECTION', 'kepegawaian'),
+
     /*
     |--------------------------------------------------------------------------
     | Database Connections
@@ -64,6 +66,26 @@ return [
             ]) : [],
         ],
 
+        'kepegawaian' => [
+            'driver' => 'mysql',
+            'host' => env('DB_KEPEGAWAIAN_HOST', '45.127.133.247'),
+            'port' => env('DB_KEPEGAWAIAN_PORT', '3306'),
+            'database' => env('DB_KEPEGAWAIAN_DATABASE', 'kepri_kepegawaian'),
+            'username' => env('DB_KEPEGAWAIAN_USERNAME', 'kepri'),
+            'password' => env('DB_KEPEGAWAIAN_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_TIMEOUT => 5,
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
@@ -81,6 +103,26 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        'kepegawaian' => [
+            'driver' => 'mysql',
+            'host' => env('DB_KEPEGAWAIAN_HOST', '45.127.133.247'),
+            'port' => env('DB_KEPEGAWAIAN_PORT', '3306'),
+            'database' => env('DB_KEPEGAWAIAN_DATABASE', 'kepri_kepegawaian'),
+            'username' => env('DB_KEPEGAWAIAN_USERNAME', 'kepri'),
+            'password' => env('DB_KEPEGAWAIAN_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_TIMEOUT => 5,
             ]) : [],
         ],
 

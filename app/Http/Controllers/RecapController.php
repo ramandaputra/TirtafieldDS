@@ -89,15 +89,15 @@ class RecapController extends Controller
                 'Jabatan',
                 'Penempatan',
                 'Hari Hadir',
-                'Presensi Masuk',
-                'Istirahat Keluar',
-                'Istirahat Masuk',
-                'Presensi Pulang',
+                'Hadir Penuh',
+                'Belum Pulang',
+                'Izin / Cuti / Dinas',
+                'Scan Masuk',
+                'Siang Keluar',
+                'Siang Masuk',
+                'Scan Pulang',
                 'Tepat Waktu',
                 'Terlambat',
-                'Disetujui',
-                'Menunggu',
-                'Ditolak',
                 'Total Log',
             ]);
 
@@ -111,15 +111,15 @@ class RecapController extends Controller
                     $row['position'],
                     $row['office_name'],
                     $row['hari_hadir'],
+                    $row['hadir_penuh_count'],
+                    $row['belum_pulang_count'],
+                    $row['izin_count'],
                     $row['masuk_count'],
                     $row['istirahat_keluar_count'],
                     $row['istirahat_masuk_count'],
                     $row['pulang_count'],
                     $row['tepat_waktu_count'],
                     $row['terlambat_count'],
-                    $row['approved_count'],
-                    $row['pending_count'],
-                    $row['rejected_count'],
                     $row['total_log'],
                 ]);
             }
@@ -138,7 +138,7 @@ class RecapController extends Controller
         try {
             $recap = $this->recapService->buildRecap($category, $request->query());
         } catch (\Throwable) {
-            $dbError = 'Terjadi kendala saat mengambil data rekap absensi dari database Tirtafield.';
+            $dbError = 'Terjadi kendala saat mengambil data rekap absensi.';
         }
 
         $isPegawai = $category === AttendanceRecapService::CATEGORY_PEGAWAI;
@@ -148,9 +148,6 @@ class RecapController extends Controller
             'pageTitle' => $isPegawai
                 ? 'Rekap Absensi Pegawai'
                 : 'Rekap Absensi Capeg, Honor, PKWT, Kontrak',
-            'pageSubtitle' => $isPegawai
-                ? 'Rekapitulasi kehadiran pegawai tetap dan direksi dari database Tirtafield.'
-                : 'Rekapitulasi kehadiran calon pegawai (Capeg), tenaga Honor, PKWT, dan Kontrak.',
             'subStatusOptions' => $isPegawai ? [] : AttendanceRecapService::NON_TETAP_STATUSES,
             'recap' => $recap,
             'dbError' => $dbError,

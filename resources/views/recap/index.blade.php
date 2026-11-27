@@ -142,8 +142,9 @@
                             class="w-full min-h-[42px] px-3 py-1.5 rounded-xl text-sm pusimpel-input pusimpel-select">
                         <option value="all" {{ $filters['attendance_filter'] === 'all' ? 'selected' : '' }}>Semua</option>
                         <option value="present" {{ $filters['attendance_filter'] === 'present' ? 'selected' : '' }}>Hadir</option>
-                        <option value="absent" {{ $filters['attendance_filter'] === 'absent' ? 'selected' : '' }}>Belum Presensi</option>
                         <option value="late" {{ $filters['attendance_filter'] === 'late' ? 'selected' : '' }}>Terlambat</option>
+                        <option value="reason" {{ $filters['attendance_filter'] === 'reason' ? 'selected' : '' }}>Izin / Dinas / Cuti</option>
+                        <option value="absent" {{ $filters['attendance_filter'] === 'absent' ? 'selected' : '' }}>Belum Presensi</option>
                     </select>
                 </div>
 
@@ -198,16 +199,16 @@
                 <div class="text-xl font-extrabold font-mono tabular-nums text-[#38bdf8] mt-0.5">{{ $summary['personil_hadir'] ?? 0 }}</div>
             </div>
             <div class="pusimpel-card p-3.5">
-                <div class="text-xs text-[#94a3b8]">Tepat Waktu</div>
-                <div class="text-xl font-extrabold font-mono tabular-nums text-[#6ee7b7] mt-0.5">{{ $summary['total_tepat_waktu'] ?? 0 }}</div>
+                <div class="text-xs text-[#94a3b8]">Hadir Penuh</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-[#6ee7b7] mt-0.5">{{ $summary['total_hadir_penuh'] ?? 0 }}</div>
             </div>
             <div class="pusimpel-card p-3.5">
                 <div class="text-xs text-[#94a3b8]">Terlambat</div>
                 <div class="text-xl font-extrabold font-mono tabular-nums text-[#fcd34d] mt-0.5">{{ $summary['total_terlambat'] ?? 0 }}</div>
             </div>
             <div class="col-span-2 lg:col-span-1 pusimpel-card p-3.5">
-                <div class="text-xs text-[#94a3b8]">Total Log</div>
-                <div class="text-xl font-extrabold font-mono tabular-nums text-white mt-0.5">{{ $summary['total_log'] ?? 0 }}</div>
+                <div class="text-xs text-[#94a3b8]">Izin / Dinas / Cuti</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-white mt-0.5">{{ $summary['total_izin'] ?? 0 }}</div>
             </div>
         </section>
 
@@ -257,8 +258,8 @@
                                     <th class="py-3 px-4">Nama &amp; Bidang</th>
                                     <th class="py-3 px-4">Status</th>
                                     <th class="py-3 px-4 text-center">Hadir</th>
-                                    <th class="py-3 px-4 text-center">Masuk</th>
-                                    <th class="py-3 px-4 text-center">Pulang</th>
+                                    <th class="py-3 px-4 text-center">Penuh</th>
+                                    <th class="py-3 px-4 text-center">Izin/Dinas</th>
                                     <th class="py-3 px-4 text-center">Tepat</th>
                                     <th class="py-3 px-4 text-center">Telat</th>
                                     <th class="py-3 px-4 text-right no-print">Log</th>
@@ -289,8 +290,8 @@
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center font-mono font-bold tabular-nums text-white">{{ $row['hari_hadir'] }}</td>
-                                        <td class="py-3 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['masuk_count'] }}</td>
-                                        <td class="py-3 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['pulang_count'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['hadir_penuh_count'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono tabular-nums text-[#a5f3fc]">{{ $row['izin_count'] }}</td>
                                         <td class="py-3 px-4 text-center font-mono font-semibold tabular-nums text-[#6ee7b7]">{{ $row['tepat_waktu_count'] }}</td>
                                         <td class="py-3 px-4 text-center font-mono font-semibold tabular-nums {{ $row['terlambat_count'] > 0 ? 'text-[#fcd34d]' : 'text-[#94a3b8]' }}">
                                             {{ $row['terlambat_count'] }}
@@ -330,8 +331,8 @@
                                     <div class="text-sm font-bold font-mono text-white">{{ $row['hari_hadir'] }}</div>
                                 </div>
                                 <div class="rounded-xl p-2 pusimpel-card-alt">
-                                    <div class="text-[11px] text-[#94a3b8]">Masuk</div>
-                                    <div class="text-sm font-bold font-mono text-white">{{ $row['masuk_count'] }}</div>
+                                    <div class="text-[11px] text-[#94a3b8]">Penuh</div>
+                                    <div class="text-sm font-bold font-mono text-white">{{ $row['hadir_penuh_count'] }}</div>
                                 </div>
                                 <div class="rounded-xl p-2 border badge-em">
                                     <div class="text-[11px]">Tepat</div>
@@ -367,48 +368,47 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="border-b border-white/15 bg-white/5 text-xs font-bold text-[#e2e8f0]">
-                                    <th class="py-3 px-4">Waktu</th>
+                                    <th class="py-3 px-4">Tanggal</th>
                                     <th class="py-3 px-4">Personil</th>
+                                    <th class="py-3 px-4 text-center">Masuk</th>
+                                    <th class="py-3 px-4 text-center">Keluar Siang</th>
+                                    <th class="py-3 px-4 text-center">Masuk Siang</th>
+                                    <th class="py-3 px-4 text-center">Pulang</th>
                                     <th class="py-3 px-4">Status</th>
-                                    <th class="py-3 px-4">Sesi</th>
-                                    <th class="py-3 px-4">Ketepatan</th>
-                                    <th class="py-3 px-4">Approval</th>
-                                    <th class="py-3 px-4">Lokasi</th>
+                                    <th class="py-3 px-4">Sumber</th>
+                                    <th class="py-3 px-4">Catatan</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/10 text-sm">
                                 @foreach ($dailyLogs as $log)
+                                    @php
+                                        $statusBadge = ! $log['has_scan']
+                                            ? 'badge-cyan'
+                                            : ($log['is_late'] ? 'badge-amber' : ($log['status_kehadiran'] === 'Belum Pulang' ? 'badge-blue' : 'badge-em'));
+                                    @endphp
                                     <tr class="pusimpel-table-row transition-colors">
                                         <td class="py-3 px-4 whitespace-nowrap font-mono text-xs">
                                             <div class="font-bold text-white">{{ $log['tanggal'] }}</div>
-                                            <div class="text-[#94a3b8]">{{ $log['waktu'] }} WIB</div>
+                                            <div class="text-[#94a3b8]">{{ $log['hari'] }}</div>
                                         </td>
                                         <td class="py-3 px-4">
                                             <div class="font-semibold text-white">{{ $log['name'] }}</div>
                                             <div class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }}</div>
                                         </td>
-                                        <td class="py-3 px-4 whitespace-nowrap text-xs font-semibold text-[#e2e8f0]">
-                                            {{ $log['status_label'] }}
-                                        </td>
-                                        <td class="py-3 px-4 whitespace-nowrap text-xs font-semibold text-white">
-                                            {{ $log['slot'] }}
-                                        </td>
+                                        <td class="py-3 px-4 text-center font-mono text-xs font-semibold text-white">{{ $log['scan1'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono text-xs text-[#cbd5e1]">{{ $log['scan2'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono text-xs text-[#cbd5e1]">{{ $log['scan3'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono text-xs font-semibold text-white">{{ $log['scan4'] }}</td>
                                         <td class="py-3 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
-                                                {{ $log['status'] }}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $statusBadge }}">
+                                                {{ $log['status_kehadiran'] }}
                                             </span>
                                         </td>
-                                        <td class="py-3 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border
-                                                {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
-                                                {{ $log['approval_label'] }}
-                                            </span>
+                                        <td class="py-3 px-4 whitespace-nowrap text-xs font-mono text-[#94a3b8]">
+                                            {{ $log['sumber'] }}
                                         </td>
-                                        <td class="py-3 px-4 text-xs text-[#cbd5e1] max-w-xs">
-                                            <div class="text-white">{{ $log['lokasi'] }}</div>
-                                            @if ($log['catatan'] !== '')
-                                                <div class="mt-0.5 break-words text-[#94a3b8]">{{ $log['catatan'] }}</div>
-                                            @endif
+                                        <td class="py-3 px-4 text-xs text-[#94a3b8] max-w-xs break-words">
+                                            {{ $log['catatan'] !== '' ? $log['catatan'] : '-' }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -419,29 +419,53 @@
 
                 <div class="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
                     @foreach ($dailyLogs as $log)
+                        @php
+                            $statusBadge = ! $log['has_scan']
+                                ? 'badge-cyan'
+                                : ($log['is_late'] ? 'badge-amber' : ($log['status_kehadiran'] === 'Belum Pulang' ? 'badge-blue' : 'badge-em'));
+                        @endphp
                         <article class="pusimpel-card p-4 space-y-2.5">
                             <div class="flex items-start justify-between gap-2">
                                 <div>
                                     <h3 class="text-sm font-bold text-white">{{ $log['name'] }}</h3>
-                                    <p class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }} · {{ $log['status_label'] }}</p>
+                                    <p class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }} · {{ $log['sumber'] }}</p>
                                 </div>
-                                <span class="text-xs font-mono font-bold text-[#38bdf8]">{{ $log['tanggal'] }} {{ $log['waktu'] }}</span>
+                                <span class="text-xs font-mono font-bold text-[#38bdf8]">{{ $log['tanggal'] }}</span>
                             </div>
-                            <div class="flex flex-wrap gap-1.5">
-                                <span class="px-2.5 py-0.5 rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">{{ $log['slot'] }}</span>
-                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
-                                    {{ $log['status'] }}
-                                </span>
-                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
-                                    {{ $log['approval_label'] }}
-                                </span>
+
+                            <div class="grid grid-cols-4 gap-1.5 text-center font-mono text-xs">
+                                <div class="rounded-lg p-1.5 pusimpel-card-alt">
+                                    <div class="text-[10px] text-[#94a3b8]">Masuk</div>
+                                    <div class="font-bold text-white">{{ $log['scan1'] }}</div>
+                                </div>
+                                <div class="rounded-lg p-1.5 pusimpel-card-alt">
+                                    <div class="text-[10px] text-[#94a3b8]">Keluar</div>
+                                    <div class="text-[#cbd5e1]">{{ $log['scan2'] }}</div>
+                                </div>
+                                <div class="rounded-lg p-1.5 pusimpel-card-alt">
+                                    <div class="text-[10px] text-[#94a3b8]">Siang</div>
+                                    <div class="text-[#cbd5e1]">{{ $log['scan3'] }}</div>
+                                </div>
+                                <div class="rounded-lg p-1.5 pusimpel-card-alt">
+                                    <div class="text-[10px] text-[#94a3b8]">Pulang</div>
+                                    <div class="font-bold text-white">{{ $log['scan4'] }}</div>
+                                </div>
                             </div>
-                            <div class="text-xs text-[#94a3b8]">
-                                <div class="text-[#cbd5e1]">{{ $log['lokasi'] }}</div>
-                                @if ($log['catatan'] !== '')
-                                    <div class="mt-0.5 break-words">{{ $log['catatan'] }}</div>
+
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold {{ $statusBadge }}">
+                                    {{ $log['status_kehadiran'] }}
+                                </span>
+                                @if ($log['has_scan'])
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
+                                        {{ $log['ketepatan'] }}
+                                    </span>
                                 @endif
                             </div>
+
+                            @if ($log['catatan'] !== '')
+                                <p class="text-xs text-[#94a3b8] break-words">{{ $log['catatan'] }}</p>
+                            @endif
                         </article>
                     @endforeach
                 </div>
@@ -617,28 +641,45 @@
                 }
 
                 modalBody.innerHTML = logs.map(function (item) {
-                    const lateClass = item.is_late ? 'badge-amber' : 'badge-em';
-                    const appClass = item.approval_status === 'approved'
-                        ? 'badge-em'
-                        : (item.approval_status === 'rejected' ? 'badge-rose' : 'badge-amber');
+                    const statusBadge = !item.has_scan
+                        ? 'badge-cyan'
+                        : (item.is_late ? 'badge-amber' : 'badge-em');
+                    const ketepatanHtml = item.has_scan
+                        ? `<span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${item.is_late ? 'badge-amber' : 'badge-em'}">${escapeHtml(item.ketepatan)}</span>`
+                        : '';
                     const notesHtml = item.catatan
-                        ? `<p class="text-xs text-[#94a3b8] mt-1">${escapeHtml(item.catatan)}</p>`
+                        ? `<p class="text-xs text-[#94a3b8]">${escapeHtml(item.catatan)}</p>`
                         : '';
 
                     return `
-                        <div class="rounded-2xl border p-3.5 space-y-2 pusimpel-card-alt">
+                        <div class="rounded-2xl border p-3.5 space-y-2.5 pusimpel-card-alt">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div class="font-mono text-xs font-bold text-white">
-                                    ${escapeHtml(item.tanggal)} · ${escapeHtml(item.waktu)} WIB
+                                    ${escapeHtml(item.tanggal)} (${escapeHtml(item.hari)})
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1.5">
-                                    <span class="px-2.5 py-0.5 rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">${escapeHtml(item.slot)}</span>
-                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${lateClass}">${escapeHtml(item.status)}</span>
-                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${appClass}">${escapeHtml(item.approval_label)}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${statusBadge}">${escapeHtml(item.status_kehadiran)}</span>
+                                    ${ketepatanHtml}
+                                    <span class="px-2 py-0.5 rounded-full border border-white/15 bg-white/10 text-[11px] font-mono text-[#cbd5e1]">${escapeHtml(item.sumber)}</span>
                                 </div>
                             </div>
-                            <div class="text-xs text-[#cbd5e1]">
-                                ${escapeHtml(item.lokasi)} (${escapeHtml(item.radius_label)})
+                            <div class="grid grid-cols-4 gap-2 text-center font-mono text-xs">
+                                <div class="rounded-lg bg-white/5 p-1.5">
+                                    <div class="text-[10px] text-[#94a3b8]">Masuk</div>
+                                    <div class="font-bold text-white">${escapeHtml(item.scan1)}</div>
+                                </div>
+                                <div class="rounded-lg bg-white/5 p-1.5">
+                                    <div class="text-[10px] text-[#94a3b8]">Keluar</div>
+                                    <div class="text-[#cbd5e1]">${escapeHtml(item.scan2)}</div>
+                                </div>
+                                <div class="rounded-lg bg-white/5 p-1.5">
+                                    <div class="text-[10px] text-[#94a3b8]">Siang</div>
+                                    <div class="text-[#cbd5e1]">${escapeHtml(item.scan3)}</div>
+                                </div>
+                                <div class="rounded-lg bg-white/5 p-1.5">
+                                    <div class="text-[10px] text-[#94a3b8]">Pulang</div>
+                                    <div class="font-bold text-white">${escapeHtml(item.scan4)}</div>
+                                </div>
                             </div>
                             ${notesHtml}
                         </div>

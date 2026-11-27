@@ -83,7 +83,7 @@ class AuthAndRecapTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_rekap_pegawai_displays_only_pegawai_tetap_and_direksi(): void
+    public function test_rekap_pegawai_pulls_attendance_attendant_and_tirtafield(): void
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
@@ -92,6 +92,8 @@ class AuthAndRecapTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Pegawai Tetap Satu');
         $response->assertSee('Direktur Utama');
+        $response->assertSee('DINAS LUAR KOTA');
+        $response->assertSee('Hadir Penuh');
         $response->assertDontSee('Capeg Satu');
         $response->assertDontSee('Honor Satu');
         $response->assertDontSee('PKWT Satu');
@@ -108,6 +110,7 @@ class AuthAndRecapTest extends TestCase
         $all->assertSee('Honor Satu');
         $all->assertSee('PKWT Satu');
         $all->assertSee('Kontrak Satu');
+        $all->assertSee('Izin Khusus');
         $all->assertDontSee('Pegawai Tetap Satu');
 
         $capegOnly = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-01&end_date=2026-11-30&sub_status=Capeg');
@@ -117,15 +120,28 @@ class AuthAndRecapTest extends TestCase
         $capegOnly->assertDontSee('Kontrak Satu');
     }
 
-    public function test_detail_json_and_csv_export_work_correctly(): void
+    public function test_detail_json_and_csv_export_include_unified_sources(): void
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
+        // K202609 has Tirtafield presensi on 2026-11-16
         $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-01&end_date=2026-11-30');
         $detail->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.person.nik', 'K202609')
-            ->assertJsonCount(2, 'data.logs');
+            ->assertJsonPath('data.logs.0.sumber', 'Tirtafield')
+            ->assertJsonCount(1, 'data.logs');
+
+        // 020101 has Fingerprint (table1 + tempdatascan) on 2026-11-18 and Attendant reason on 2026-11-19
+        $detailPegawai = $this->actingAs($user)->getJson('/rekap/pegawai/detail/020101?start_date=2026-11-01&end_date=2026-11-30');
+        $detailPegawai->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'data.logs')
+            ->assertJsonPath('data.logs.0.status_kehadiran', 'DINAS LUAR KOTA')
+            ->assertJsonPath('data.logs.1.scan1', '07:55')
+            ->assertJsonPath('data.logs.1.scan2', '12:05')
+            ->assertJsonPath('data.logs.1.scan3', '13:02')
+            ->assertJsonPath('data.logs.1.scan4', '16:10');
 
         $csv = $this->actingAs($user)->get('/rekap/pegawai/export?start_date=2026-11-01&end_date=2026-11-30');
         $csv->assertStatus(200);
@@ -133,6 +149,7 @@ class AuthAndRecapTest extends TestCase
 
         $content = $csv->streamedContent();
         $this->assertStringContainsString('Pegawai Tetap Satu', $content);
+        $this->assertStringContainsString('Hadir Penuh', $content);
         $this->assertStringNotContainsString('Kontrak Satu', $content);
     }
 
@@ -148,6 +165,10 @@ class AuthAndRecapTest extends TestCase
 
     private function createTestSchema(): void
     {
+        Schema::dropIfExists('attendant');
+        Schema::dropIfExists('reason');
+        Schema::dropIfExists('tempdatascan');
+        Schema::dropIfExists('table1');
         Schema::dropIfExists('presensi');
         Schema::dropIfExists('employee');
         Schema::dropIfExists('offices');
@@ -228,6 +249,34 @@ class AuthAndRecapTest extends TestCase
             $table->text('review_notes')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('table1', function (Blueprint $table): void {
+            $table->increments('idx');
+            $table->integer('emp_id');
+            $table->date('dtgl');
+            $table->string('inpresent')->nullable();
+            $table->string('outpresent')->nullable();
+        });
+
+        Schema::create('tempdatascan', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('userid');
+            $table->date('checkdate');
+            $table->string('checktime');
+        });
+
+        Schema::create('reason', function (Blueprint $table): void {
+            $table->integer('idx')->primary();
+            $table->string('re_desc');
+        });
+
+        Schema::create('attendant', function (Blueprint $table): void {
+            $table->increments('att_id');
+            $table->integer('emp_id');
+            $table->date('att_date');
+            $table->integer('reason_id')->nullable();
+            $table->text('keterangan')->nullable();
+        });
     }
 
     private function seedTestData(): void
@@ -275,6 +324,7 @@ class AuthAndRecapTest extends TestCase
 
         DB::table('employee')->insert([
             [
+                'pgw_id' => 1,
                 'pgw_nup' => '020101',
                 'pgw_nama' => 'Pegawai Tetap Satu',
                 'pgw_sttskerja' => 1,
@@ -284,6 +334,7 @@ class AuthAndRecapTest extends TestCase
                 'office_id' => 'hq',
             ],
             [
+                'pgw_id' => 2,
                 'pgw_nup' => 'D001',
                 'pgw_nama' => 'Direktur Utama',
                 'pgw_sttskerja' => 3,
@@ -293,6 +344,7 @@ class AuthAndRecapTest extends TestCase
                 'office_id' => 'hq',
             ],
             [
+                'pgw_id' => 3,
                 'pgw_nup' => '020242',
                 'pgw_nama' => 'Capeg Satu',
                 'pgw_sttskerja' => 2,
@@ -302,6 +354,7 @@ class AuthAndRecapTest extends TestCase
                 'office_id' => 'hq',
             ],
             [
+                'pgw_id' => 4,
                 'pgw_nup' => 'H202507',
                 'pgw_nama' => 'Honor Satu',
                 'pgw_sttskerja' => 4,
@@ -311,6 +364,7 @@ class AuthAndRecapTest extends TestCase
                 'office_id' => 'hq',
             ],
             [
+                'pgw_id' => 5,
                 'pgw_nup' => 'PA002',
                 'pgw_nama' => 'PKWT Satu',
                 'pgw_sttskerja' => 9,
@@ -320,6 +374,7 @@ class AuthAndRecapTest extends TestCase
                 'office_id' => 'hq',
             ],
             [
+                'pgw_id' => 6,
                 'pgw_nup' => 'K202609',
                 'pgw_nama' => 'Kontrak Satu',
                 'pgw_sttskerja' => 4,
@@ -329,6 +384,7 @@ class AuthAndRecapTest extends TestCase
                 'office_id' => 'hq',
             ],
             [
+                'pgw_id' => 7,
                 'pgw_nup' => 'P242101',
                 'pgw_nama' => 'Pusimpel',
                 'pgw_sttskerja' => null,
@@ -340,16 +396,6 @@ class AuthAndRecapTest extends TestCase
         ]);
 
         DB::table('presensi')->insert([
-            [
-                'nik' => '020101',
-                'pgw_nama' => 'Pegawai Tetap Satu',
-                'tanggal' => '2026-11-16',
-                'slot_type' => 'masuk',
-                'waktu' => '2026-11-16 07:55:00',
-                'status' => 'Tepat Waktu',
-                'approval_status' => 'approved',
-                'tipe_pengajuan' => 'dalamRadius',
-            ],
             [
                 'nik' => 'K202609',
                 'pgw_nama' => 'Kontrak Satu',
@@ -369,6 +415,54 @@ class AuthAndRecapTest extends TestCase
                 'status' => 'Tepat Waktu',
                 'approval_status' => 'approved',
                 'tipe_pengajuan' => 'dalamRadius',
+            ],
+        ]);
+
+        DB::table('table1')->insert([
+            [
+                'emp_id' => 1,
+                'dtgl' => '2026-11-18',
+                'inpresent' => '07:55:00',
+                'outpresent' => '16:10:00',
+            ],
+            [
+                'emp_id' => 3,
+                'dtgl' => '2026-11-18',
+                'inpresent' => '08:15:00',
+                'outpresent' => null,
+            ],
+        ]);
+
+        DB::table('tempdatascan')->insert([
+            [
+                'userid' => '1',
+                'checkdate' => '2026-11-18',
+                'checktime' => '2026-11-18 12:05:00',
+            ],
+            [
+                'userid' => '1',
+                'checkdate' => '2026-11-18',
+                'checktime' => '2026-11-18 13:02:00',
+            ],
+        ]);
+
+        DB::table('reason')->insert([
+            ['idx' => 11, 're_desc' => 'DINAS LUAR KOTA'],
+            ['idx' => 21, 're_desc' => '25%'],
+        ]);
+
+        DB::table('attendant')->insert([
+            [
+                'emp_id' => 1,
+                'att_date' => '2026-11-19',
+                'reason_id' => 11,
+                'keterangan' => 'SPT ke Batam',
+            ],
+            [
+                'emp_id' => 4,
+                'att_date' => '2026-11-19',
+                'reason_id' => 21,
+                'keterangan' => 'Izin keluarga',
             ],
         ]);
     }
