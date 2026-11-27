@@ -212,7 +212,7 @@
             Pratinjau Cetak · {{ $person['name'] ?? '-' }} ({{ $recap['period_label'] ?? '' }})
         </div>
         <div class="actions">
-            <a href="{{ route($category === \App\Services\AttendanceRecapService::CATEGORY_PEGAWAI ? 'rekap.pegawai' : 'rekap.non-tetap', ['nik' => $person['nik'] ?? '', 'bulan' => $recap['bulan'], 'tahun' => $recap['tahun'], 'sub_status' => $recap['sub_status'] ?? '']) }}"
+            <a href="{{ route($category === \App\Services\AttendanceRecapService::CATEGORY_PEGAWAI ? 'rekap.pegawai' : 'rekap.non-tetap', ['nik' => $person['nik'] ?? '', 'bulan' => $recap['bulan'], 'tahun' => $recap['tahun']]) }}"
                class="btn-toolbar">
                 Kembali
             </a>
@@ -229,10 +229,7 @@
 
         <div class="sheet-content">
             <div class="doc-header">
-                <h1 class="doc-title">
-                    {{ $category === \App\Services\AttendanceRecapService::CATEGORY_PEGAWAI ? 'Laporan Absensi Pegawai' : 'Laporan Absensi Capeg, Honor, PKWT & Kontrak' }}
-                </h1>
-                <p class="doc-subtitle">PERUMDA Air Minum Tirta Kepri</p>
+                <h1 class="doc-title">LAPORAN ABSENSI</h1>
             </div>
 
             @if ($person)
