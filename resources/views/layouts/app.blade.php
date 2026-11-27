@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Portal Rekap Absensi') | Tirtafield DS</title>
+    <title>@yield('title', 'Rekap Absensi') | Tirtafield DS</title>
     <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,17 +18,14 @@
                 <div class="flex items-center justify-between h-16 gap-4">
                     <div class="flex items-center gap-6 min-w-0">
                         <a href="{{ route('dashboard') }}" class="flex items-center gap-3 min-w-0 rounded-xl py-1 pr-2 hover:opacity-95 transition-opacity">
-                            <span class="w-10 h-10 icon-tile cat-pelanggan shrink-0" aria-hidden="true">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <span class="w-9 h-9 icon-tile cat-pelanggan shrink-0" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
                                     <path d="M9 14l2 2 4-4" />
                                 </svg>
                             </span>
-                            <span class="min-w-0">
-                                <span class="block font-heading text-base font-extrabold tracking-tight text-white truncate">
-                                    Tirtafield <span class="text-[#38bdf8]">DS</span>
-                                </span>
-                                <span class="block text-xs text-[#94a3b8] truncate">PERUMDA Air Minum Tirta Kepri</span>
+                            <span class="font-heading text-base font-extrabold tracking-tight text-white truncate">
+                                Tirtafield <span class="text-[#38bdf8]">DS</span>
                             </span>
                         </a>
 
@@ -40,31 +37,26 @@
                             <a href="{{ route('rekap.pegawai') }}"
                                class="pill-btn min-h-[40px] {{ request()->routeIs('rekap.pegawai') ? 'active' : '' }}">
                                 <span class="category-dot dot-pelanggan" aria-hidden="true"></span>
-                                <span>Rekap Pegawai</span>
+                                <span>Pegawai</span>
                             </a>
                             <a href="{{ route('rekap.non-tetap') }}"
                                class="pill-btn min-h-[40px] {{ request()->routeIs('rekap.non-tetap') ? 'active' : '' }}">
                                 <span class="category-dot dot-kepegawaian" aria-hidden="true"></span>
-                                <span>Capeg, Honor, PKWT, Kontrak</span>
+                                <span>Capeg · Honor · PKWT · Kontrak</span>
                             </a>
                         </nav>
                     </div>
 
                     <div class="hidden md:flex items-center gap-3 shrink-0">
                         <div class="text-right">
-                            <div class="text-xs font-semibold text-[#f1f5f9] truncate max-w-[190px]">{{ auth()->user()->name }}</div>
-                            <div class="text-xs font-mono text-[#94a3b8]">{{ auth()->user()->nik }} · {{ auth()->user()->roleLabel() }}</div>
+                            <div class="text-xs font-semibold text-[#f1f5f9] truncate max-w-[180px]">{{ auth()->user()->name }}</div>
+                            <div class="text-[11px] font-mono text-[#94a3b8]">{{ auth()->user()->nik }}</div>
                         </div>
 
                         <form action="{{ route('logout') }}" method="POST">
                             @csrf
                             <button type="submit"
-                                    class="min-h-[44px] px-4 py-2 rounded-full text-xs font-semibold inline-flex items-center gap-2 pusimpel-btn-ghost">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                    <polyline points="16 17 21 12 16 7" />
-                                    <line x1="21" y1="12" x2="9" y2="12" />
-                                </svg>
+                                    class="min-h-[40px] px-4 py-2 rounded-full text-xs font-semibold inline-flex items-center gap-2 pusimpel-btn-ghost">
                                 <span>Keluar</span>
                             </button>
                         </form>
@@ -87,9 +79,9 @@
             </div>
 
             <div id="mobileMenuPanel" class="hidden md:hidden border-t border-white/10 bg-[#0c1422] px-4 py-3 space-y-2.5">
-                <div class="pb-2 border-b border-white/10">
-                    <div class="text-sm font-semibold text-white">{{ auth()->user()->name }}</div>
-                    <div class="text-xs font-mono text-[#94a3b8]">{{ auth()->user()->nik }} · {{ auth()->user()->roleLabel() }}</div>
+                <div class="pb-2 border-b border-white/10 flex items-center justify-between">
+                    <span class="text-sm font-semibold text-white">{{ auth()->user()->name }}</span>
+                    <span class="text-xs font-mono text-[#94a3b8]">{{ auth()->user()->nik }}</span>
                 </div>
                 <nav aria-label="Navigasi seluler" class="flex flex-col gap-1.5">
                     <a href="{{ route('dashboard') }}"
@@ -109,7 +101,7 @@
                     @csrf
                     <button type="submit"
                             class="w-full min-h-[44px] px-4 py-2 rounded-xl text-sm font-semibold text-left pusimpel-btn-ghost">
-                        Keluar dari Portal
+                        Keluar
                     </button>
                 </form>
             </div>
@@ -119,11 +111,7 @@
     <main class="flex-1">
         @if (session('status'))
             <div class="no-print max-w-[1260px] mx-auto px-4 sm:px-6 pt-4">
-                <div role="status" class="rounded-2xl border px-4 py-3 text-sm font-semibold flex items-center gap-2.5 badge-em">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" aria-hidden="true">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                        <polyline points="22 4 12 14.01 9 11.01" />
-                    </svg>
+                <div role="status" class="rounded-2xl border px-4 py-2.5 text-sm font-semibold flex items-center gap-2.5 badge-em">
                     <span>{{ session('status') }}</span>
                 </div>
             </div>
@@ -132,10 +120,9 @@
         @yield('content')
     </main>
 
-    <footer class="no-print mt-12 border-t border-white/10">
-        <div class="max-w-[1260px] mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#94a3b8]">
-            <span>Tirtafield DS · Portal Rekapitulasi Presensi PERUMDA Air Minum Tirta Kepri</span>
-            <span>Sumber data: Database Tirtafield (Asia/Jakarta)</span>
+    <footer class="no-print mt-10 border-t border-white/10">
+        <div class="max-w-[1260px] mx-auto px-4 sm:px-6 py-4 text-center text-xs text-[#94a3b8]">
+            Tirtafield DS · PERUMDA Air Minum Tirta Kepri
         </div>
     </footer>
 

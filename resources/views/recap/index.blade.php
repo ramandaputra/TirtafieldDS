@@ -30,72 +30,51 @@
     $currentRouteName = $isPegawai ? 'rekap.pegawai' : 'rekap.non-tetap';
 @endphp
 
-<div class="max-w-[1260px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
-    {{-- Breadcrumb & Header --}}
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div class="space-y-2">
+<div class="max-w-[1260px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5">
+    {{-- Header --}}
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div class="space-y-1.5">
             <a href="{{ route('dashboard') }}"
-               class="no-print inline-flex items-center gap-2 min-h-[44px] px-3 -ml-3 rounded-full text-sm font-semibold text-[#38bdf8] hover:bg-white/10 transition-colors">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+               class="no-print inline-flex items-center gap-1.5 min-h-[40px] px-2 -ml-2 rounded-full text-xs font-semibold text-[#38bdf8] hover:bg-white/10 transition-colors">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="19" y1="12" x2="5" y2="12" />
                     <polyline points="12 19 5 12 12 5" />
                 </svg>
-                <span>Kembali ke Beranda</span>
+                <span>Kembali</span>
             </a>
             <h1 class="text-2xl sm:text-3xl font-extrabold user-name-gradient">
                 {{ $pageTitle }}
             </h1>
-            <p class="text-sm text-[#cbd5e1]">
-                {{ $pageSubtitle }} Periode:
-                <span class="font-mono font-semibold text-white">{{ $filters['start_date'] }}</span>
-                s/d
-                <span class="font-mono font-semibold text-white">{{ $filters['end_date'] }}</span>.
+            <p class="text-xs font-mono text-[#94a3b8]">
+                {{ $filters['start_date'] }} s/d {{ $filters['end_date'] }}
             </p>
         </div>
 
-        <div class="no-print flex flex-wrap items-center gap-3 shrink-0">
+        <div class="no-print flex flex-wrap items-center gap-2.5 shrink-0">
             <a href="{{ route('rekap.export', array_merge(['category' => $category], $filters)) }}"
-               class="min-h-[44px] px-5 py-2.5 rounded-full text-sm pusimpel-btn-primary inline-flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
+               class="min-h-[44px] px-5 py-2 rounded-full text-sm pusimpel-btn-primary inline-flex items-center gap-2">
                 <span>Ekspor CSV</span>
             </a>
 
             <button type="button"
                     onclick="window.print()"
-                    class="min-h-[44px] px-5 py-2.5 rounded-full text-sm font-semibold pusimpel-btn-ghost inline-flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="6 9 6 2 18 2 18 9" />
-                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                    <rect x="6" y="14" width="12" height="8" />
-                </svg>
+                    class="min-h-[44px] px-5 py-2 rounded-full text-sm font-semibold pusimpel-btn-ghost inline-flex items-center gap-2">
                 <span>Cetak</span>
             </button>
         </div>
     </div>
 
     @if ($dbError)
-        <div role="alert" class="rounded-2xl border p-4 text-sm flex items-start gap-3 badge-rose">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 mt-0.5" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <div>
-                <p class="font-bold">Gagal memuat data rekap</p>
-                <p class="mt-0.5">{{ $dbError }}</p>
-            </div>
+        <div role="alert" class="rounded-2xl border p-4 text-sm badge-rose">
+            {{ $dbError }}
         </div>
     @else
-        {{-- Sub-Status Filter Pills (Pusimpel Filter Pills Style) --}}
+        {{-- Sub-Status Pills --}}
         @if (! empty($subStatusOptions))
-            <div class="no-print filter-pills" role="group" aria-label="Filter sub-status kepegawaian">
+            <div class="no-print filter-pills" role="group" aria-label="Filter sub-status">
                 <a href="{{ route($currentRouteName, array_merge($filters, ['sub_status' => ''])) }}"
-                   class="pill-btn min-h-[44px] {{ $filters['sub_status'] === '' ? 'active' : '' }}">
-                    Semua Status
+                   class="pill-btn min-h-[40px] {{ $filters['sub_status'] === '' ? 'active' : '' }}">
+                    Semua
                 </a>
                 @foreach ($subStatusOptions as $subOpt)
                     @php
@@ -108,12 +87,12 @@
                         };
                     @endphp
                     <a href="{{ route($currentRouteName, array_merge($filters, ['sub_status' => $subOpt])) }}"
-                       class="pill-btn min-h-[44px] {{ $isActiveSub ? 'active' : '' }}">
+                       class="pill-btn min-h-[40px] {{ $isActiveSub ? 'active' : '' }}">
                         @if (! $isActiveSub)
                             <span class="category-dot {{ $dotClass }}" aria-hidden="true"></span>
                         @endif
                         <span>{{ $subOpt }}</span>
-                        <span class="font-mono text-xs px-1.5 py-0.5 rounded-full {{ $isActiveSub ? 'bg-[#070c16]/15 text-[#070c16]' : 'bg-white/10 text-[#f1f5f9]' }}">
+                        <span class="font-mono text-xs {{ $isActiveSub ? 'text-[#070c16]' : 'text-[#94a3b8]' }}">
                             {{ $statusBreakdown[$subOpt] ?? 0 }}
                         </span>
                     </a>
@@ -121,51 +100,36 @@
             </div>
         @endif
 
-        {{-- Filter Form --}}
-        <section aria-label="Filter rekap absensi" class="no-print pusimpel-card p-4 sm:p-5 space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
-                <span class="font-heading text-sm font-bold text-white">Filter Periode &amp; Personil</span>
-                <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" data-preset="today" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
-                        Hari Ini
-                    </button>
-                    <button type="button" data-preset="7days" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
-                        7 Hari Terakhir
-                    </button>
-                    <button type="button" data-preset="month" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
-                        Bulan Ini
-                    </button>
-                </div>
-            </div>
-
-            <form id="recapFilterForm" action="{{ route($currentRouteName) }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+        {{-- Filter Bar --}}
+        <section aria-label="Filter rekap" class="no-print pusimpel-card p-4 space-y-3">
+            <form id="recapFilterForm" action="{{ route($currentRouteName) }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
                 @if (! empty($subStatusOptions))
                     <input type="hidden" name="sub_status" value="{{ $filters['sub_status'] }}">
                 @endif
 
                 <div>
-                    <label for="start_date" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Tanggal Mulai</label>
+                    <label for="start_date" class="block text-xs font-medium text-[#cbd5e1] mb-1">Mulai</label>
                     <input type="date" id="start_date" name="start_date" value="{{ $filters['start_date'] }}"
-                           class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input">
+                           class="w-full min-h-[42px] px-3 py-1.5 rounded-xl text-sm pusimpel-input">
                 </div>
 
                 <div>
-                    <label for="end_date" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Tanggal Akhir</label>
+                    <label for="end_date" class="block text-xs font-medium text-[#cbd5e1] mb-1">Akhir</label>
                     <input type="date" id="end_date" name="end_date" value="{{ $filters['end_date'] }}"
-                           class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input">
+                           class="w-full min-h-[42px] px-3 py-1.5 rounded-xl text-sm pusimpel-input">
                 </div>
 
                 <div>
-                    <label for="q" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Cari Nama / NIK</label>
-                    <input type="text" id="q" name="q" value="{{ $filters['q'] }}" placeholder="Nama atau NIK..."
-                           class="w-full min-h-[44px] px-4 py-2 rounded-full text-sm pusimpel-input">
+                    <label for="q" class="block text-xs font-medium text-[#cbd5e1] mb-1">Cari</label>
+                    <input type="text" id="q" name="q" value="{{ $filters['q'] }}" placeholder="Nama atau NIK"
+                           class="w-full min-h-[42px] px-4 py-1.5 rounded-full text-sm pusimpel-input">
                 </div>
 
                 <div>
-                    <label for="department" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Bidang / Unit</label>
+                    <label for="department" class="block text-xs font-medium text-[#cbd5e1] mb-1">Bidang</label>
                     <select id="department" name="department"
-                            class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input pusimpel-select">
-                        <option value="">Semua Bidang</option>
+                            class="w-full min-h-[42px] px-3 py-1.5 rounded-xl text-sm pusimpel-input pusimpel-select">
+                        <option value="">Semua</option>
                         @foreach ($departments as $dept)
                             <option value="{{ $dept }}" {{ $filters['department'] === $dept ? 'selected' : '' }}>{{ $dept }}</option>
                         @endforeach
@@ -173,24 +137,24 @@
                 </div>
 
                 <div>
-                    <label for="attendance_filter" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Status Kehadiran</label>
+                    <label for="attendance_filter" class="block text-xs font-medium text-[#cbd5e1] mb-1">Kehadiran</label>
                     <select id="attendance_filter" name="attendance_filter"
-                            class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input pusimpel-select">
-                        <option value="all" {{ $filters['attendance_filter'] === 'all' ? 'selected' : '' }}>Semua Personil</option>
-                        <option value="present" {{ $filters['attendance_filter'] === 'present' ? 'selected' : '' }}>Sudah Presensi</option>
+                            class="w-full min-h-[42px] px-3 py-1.5 rounded-xl text-sm pusimpel-input pusimpel-select">
+                        <option value="all" {{ $filters['attendance_filter'] === 'all' ? 'selected' : '' }}>Semua</option>
+                        <option value="present" {{ $filters['attendance_filter'] === 'present' ? 'selected' : '' }}>Hadir</option>
                         <option value="absent" {{ $filters['attendance_filter'] === 'absent' ? 'selected' : '' }}>Belum Presensi</option>
-                        <option value="late" {{ $filters['attendance_filter'] === 'late' ? 'selected' : '' }}>Pernah Terlambat</option>
+                        <option value="late" {{ $filters['attendance_filter'] === 'late' ? 'selected' : '' }}>Terlambat</option>
                     </select>
                 </div>
 
                 <div class="flex items-center gap-2">
                     <button type="submit" id="filterSubmitBtn"
-                            class="flex-1 min-h-[44px] px-4 py-2 rounded-full text-sm pusimpel-btn-primary">
-                        Terapkan
+                            class="flex-1 min-h-[42px] px-4 py-2 rounded-full text-sm pusimpel-btn-primary">
+                        Filter
                     </button>
                     @if ($hasActiveFilter)
                         <a href="{{ route($currentRouteName, ['start_date' => $filters['start_date'], 'end_date' => $filters['end_date']]) }}"
-                           class="min-h-[44px] px-3.5 py-2 rounded-full text-sm font-semibold inline-flex items-center pusimpel-btn-ghost">
+                           class="min-h-[42px] px-3.5 py-2 rounded-full text-xs font-semibold inline-flex items-center pusimpel-btn-ghost">
                             Reset
                         </a>
                     @endif
@@ -198,77 +162,85 @@
 
                 @if ($offices->isNotEmpty())
                     <div class="sm:col-span-2 lg:col-span-3">
-                        <label for="office_id" class="block text-xs font-semibold text-[#e2e8f0] mb-1.5">Kantor Penempatan</label>
+                        <label for="office_id" class="block text-xs font-medium text-[#cbd5e1] mb-1">Penempatan</label>
                         <select id="office_id" name="office_id"
-                                class="w-full min-h-[44px] px-3.5 py-2 rounded-xl text-sm pusimpel-input pusimpel-select">
-                            <option value="">Semua Kantor Penempatan</option>
+                                class="w-full min-h-[42px] px-3 py-1.5 rounded-xl text-sm pusimpel-input pusimpel-select">
+                            <option value="">Semua Kantor</option>
                             @foreach ($offices as $office)
                                 <option value="{{ $office->id }}" {{ $filters['office_id'] === $office->id ? 'selected' : '' }}>{{ $office->nama_kantor }}</option>
                             @endforeach
                         </select>
                     </div>
                 @endif
+
+                <div class="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center lg:justify-end gap-2">
+                    <button type="button" data-preset="today" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
+                        Hari Ini
+                    </button>
+                    <button type="button" data-preset="7days" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
+                        7 Hari
+                    </button>
+                    <button type="button" data-preset="month" class="preset-btn min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
+                        Bulan Ini
+                    </button>
+                </div>
             </form>
         </section>
 
-        {{-- Summary Metrics Row (100% Real DB Data) --}}
-        <section aria-label="Ringkasan statistik kehadiran" class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-            <div class="pusimpel-card p-4">
-                <div class="text-xs font-medium text-[#94a3b8]">Total Personil</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums text-white mt-1">{{ $summary['total_personil'] ?? 0 }}</div>
+        {{-- Ringkasan Angka Real --}}
+        <section aria-label="Ringkasan statistik" class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="pusimpel-card p-3.5">
+                <div class="text-xs text-[#94a3b8]">Personil</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-white mt-0.5">{{ $summary['total_personil'] ?? 0 }}</div>
             </div>
-            <div class="pusimpel-card p-4">
-                <div class="text-xs font-medium text-[#94a3b8]">Personil Tercatat Hadir</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums text-[#38bdf8] mt-1">{{ $summary['personil_hadir'] ?? 0 }}</div>
+            <div class="pusimpel-card p-3.5">
+                <div class="text-xs text-[#94a3b8]">Hadir</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-[#38bdf8] mt-0.5">{{ $summary['personil_hadir'] ?? 0 }}</div>
             </div>
-            <div class="pusimpel-card p-4">
-                <div class="text-xs font-medium text-[#94a3b8]">Masuk Tepat Waktu</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums text-[#6ee7b7] mt-1">{{ $summary['total_tepat_waktu'] ?? 0 }}</div>
+            <div class="pusimpel-card p-3.5">
+                <div class="text-xs text-[#94a3b8]">Tepat Waktu</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-[#6ee7b7] mt-0.5">{{ $summary['total_tepat_waktu'] ?? 0 }}</div>
             </div>
-            <div class="pusimpel-card p-4">
-                <div class="text-xs font-medium text-[#94a3b8]">Masuk Terlambat</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums text-[#fcd34d] mt-1">{{ $summary['total_terlambat'] ?? 0 }}</div>
+            <div class="pusimpel-card p-3.5">
+                <div class="text-xs text-[#94a3b8]">Terlambat</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-[#fcd34d] mt-0.5">{{ $summary['total_terlambat'] ?? 0 }}</div>
             </div>
-            <div class="col-span-2 lg:col-span-1 pusimpel-card p-4">
-                <div class="text-xs font-medium text-[#94a3b8]">Total Log Presensi</div>
-                <div class="text-2xl font-extrabold font-mono tabular-nums text-white mt-1">{{ $summary['total_log'] ?? 0 }}</div>
-                <div class="text-xs text-[#cbd5e1] mt-0.5 font-mono">
-                    Disetujui: {{ $summary['total_approved'] ?? 0 }} · Ditolak: {{ $summary['total_rejected'] ?? 0 }}
-                </div>
+            <div class="col-span-2 lg:col-span-1 pusimpel-card p-3.5">
+                <div class="text-xs text-[#94a3b8]">Total Log</div>
+                <div class="text-xl font-extrabold font-mono tabular-nums text-white mt-0.5">{{ $summary['total_log'] ?? 0 }}</div>
             </div>
         </section>
 
-        {{-- View Mode Tabs --}}
-        <div class="no-print flex flex-wrap items-center gap-2 pb-1" role="tablist" aria-label="Tampilan data rekap">
+        {{-- View Tabs --}}
+        <div class="no-print flex flex-wrap items-center gap-2" role="tablist" aria-label="Tampilan rekap">
             <button type="button"
                     id="tabSummaryBtn"
                     role="tab"
                     aria-selected="true"
                     aria-controls="panelSummary"
-                    class="pill-btn min-h-[44px] active">
-                Ringkasan Per Personil ({{ $rows->count() }})
+                    class="pill-btn min-h-[40px] active">
+                Per Personil ({{ $rows->count() }})
             </button>
             <button type="button"
                     id="tabLogsBtn"
                     role="tab"
                     aria-selected="false"
                     aria-controls="panelLogs"
-                    class="pill-btn min-h-[44px]">
-                Rincian Log Harian ({{ $dailyLogs->count() }})
+                    class="pill-btn min-h-[40px]">
+                Log Harian ({{ $dailyLogs->count() }})
             </button>
         </div>
 
-        {{-- PANEL 1: Ringkasan Per Personil --}}
+        {{-- PANEL 1: Per Personil --}}
         <section id="panelSummary" role="tabpanel" aria-labelledby="tabSummaryBtn">
             @if ($rows->isEmpty())
                 <div class="no-result-box space-y-3">
-                    <p class="text-base font-bold text-white">Tidak ada data personil yang sesuai dengan filter.</p>
-                    <p class="text-sm text-[#94a3b8]">Coba ubah kata kunci pencarian, pilihan bidang, atau rentang tanggal.</p>
+                    <p class="text-sm font-semibold text-white">Tidak ada data yang sesuai.</p>
                     @if ($hasActiveFilter)
                         <div>
                             <a href="{{ route($currentRouteName) }}"
-                               class="inline-flex items-center justify-center min-h-[44px] px-5 py-2 rounded-full text-sm pusimpel-btn-primary">
-                                Reset Semua Filter
+                               class="inline-flex items-center justify-center min-h-[40px] px-4 py-2 rounded-full text-xs pusimpel-btn-primary">
+                                Reset Filter
                             </a>
                         </div>
                     @endif
@@ -280,16 +252,16 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="border-b border-white/15 bg-white/5 text-xs font-bold text-[#e2e8f0]">
-                                    <th class="py-3.5 px-4">No</th>
-                                    <th class="py-3.5 px-4">NIK / NUP</th>
-                                    <th class="py-3.5 px-4">Nama &amp; Unit Kerja</th>
-                                    <th class="py-3.5 px-4">Status</th>
-                                    <th class="py-3.5 px-4 text-center">Hari Hadir</th>
-                                    <th class="py-3.5 px-4 text-center">Masuk</th>
-                                    <th class="py-3.5 px-4 text-center">Pulang</th>
-                                    <th class="py-3.5 px-4 text-center">Tepat Waktu</th>
-                                    <th class="py-3.5 px-4 text-center">Terlambat</th>
-                                    <th class="py-3.5 px-4 text-right no-print">Rincian</th>
+                                    <th class="py-3 px-4">No</th>
+                                    <th class="py-3 px-4">NIK</th>
+                                    <th class="py-3 px-4">Nama &amp; Bidang</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4 text-center">Hadir</th>
+                                    <th class="py-3 px-4 text-center">Masuk</th>
+                                    <th class="py-3 px-4 text-center">Pulang</th>
+                                    <th class="py-3 px-4 text-center">Tepat</th>
+                                    <th class="py-3 px-4 text-center">Telat</th>
+                                    <th class="py-3 px-4 text-right no-print">Log</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/10 text-sm">
@@ -305,30 +277,30 @@
                                         };
                                     @endphp
                                     <tr class="pusimpel-table-row transition-colors">
-                                        <td class="py-3.5 px-4 font-mono text-xs text-[#94a3b8] tabular-nums">{{ $idx + 1 }}</td>
-                                        <td class="py-3.5 px-4 font-mono text-xs font-semibold text-[#e2e8f0] whitespace-nowrap">{{ $row['nik'] }}</td>
-                                        <td class="py-3.5 px-4">
+                                        <td class="py-3 px-4 font-mono text-xs text-[#94a3b8] tabular-nums">{{ $idx + 1 }}</td>
+                                        <td class="py-3 px-4 font-mono text-xs font-semibold text-[#e2e8f0] whitespace-nowrap">{{ $row['nik'] }}</td>
+                                        <td class="py-3 px-4">
                                             <div class="font-semibold text-white">{{ $row['name'] }}</div>
-                                            <div class="text-xs text-[#94a3b8]">{{ $row['department'] }} · {{ $row['position'] }}</div>
+                                            <div class="text-xs text-[#94a3b8]">{{ $row['department'] }}</div>
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border {{ $badgeClass }}">
+                                        <td class="py-3 px-4 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $badgeClass }}">
                                                 {{ $row['status_label'] }}
                                             </span>
                                         </td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-bold tabular-nums text-white">{{ $row['hari_hadir'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['masuk_count'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['pulang_count'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-semibold tabular-nums text-[#6ee7b7]">{{ $row['tepat_waktu_count'] }}</td>
-                                        <td class="py-3.5 px-4 text-center font-mono font-semibold tabular-nums {{ $row['terlambat_count'] > 0 ? 'text-[#fcd34d]' : 'text-[#94a3b8]' }}">
+                                        <td class="py-3 px-4 text-center font-mono font-bold tabular-nums text-white">{{ $row['hari_hadir'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['masuk_count'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono tabular-nums text-[#cbd5e1]">{{ $row['pulang_count'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono font-semibold tabular-nums text-[#6ee7b7]">{{ $row['tepat_waktu_count'] }}</td>
+                                        <td class="py-3 px-4 text-center font-mono font-semibold tabular-nums {{ $row['terlambat_count'] > 0 ? 'text-[#fcd34d]' : 'text-[#94a3b8]' }}">
                                             {{ $row['terlambat_count'] }}
                                         </td>
-                                        <td class="py-3.5 px-4 text-right no-print">
+                                        <td class="py-3 px-4 text-right no-print">
                                             <button type="button"
                                                     data-detail-nik="{{ $row['nik'] }}"
                                                     data-detail-name="{{ $row['name'] }}"
-                                                    class="detail-trigger min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-semibold pusimpel-btn-ghost">
-                                                Lihat Log ({{ $row['total_log'] }})
+                                                    class="detail-trigger min-h-[36px] px-3.5 py-1 rounded-full text-xs font-semibold pusimpel-btn-ghost">
+                                                Detail ({{ $row['total_log'] }})
                                             </button>
                                         </td>
                                     </tr>
@@ -345,16 +317,11 @@
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <h3 class="text-sm font-bold text-white truncate">{{ $row['name'] }}</h3>
-                                    <p class="text-xs font-mono text-[#94a3b8]">{{ $row['nik'] }}</p>
+                                    <p class="text-xs font-mono text-[#94a3b8]">{{ $row['nik'] }} · {{ $row['department'] }}</p>
                                 </div>
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border shrink-0 badge-cyan">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shrink-0 badge-cyan">
                                     {{ $row['status_label'] }}
                                 </span>
-                            </div>
-
-                            <div class="text-xs text-[#cbd5e1] space-y-0.5">
-                                <div class="truncate"><strong class="text-white">Bidang:</strong> {{ $row['department'] }}</div>
-                                <div class="truncate"><strong class="text-white">Jabatan:</strong> {{ $row['position'] }}</div>
                             </div>
 
                             <div class="grid grid-cols-4 gap-2 pt-2 border-t border-white/10 text-center">
@@ -380,7 +347,7 @@
                                     data-detail-nik="{{ $row['nik'] }}"
                                     data-detail-name="{{ $row['name'] }}"
                                     class="no-print detail-trigger w-full min-h-[44px] px-4 py-2 rounded-full text-xs font-semibold pusimpel-btn-ghost">
-                                Lihat Rincian Log ({{ $row['total_log'] }})
+                                Detail ({{ $row['total_log'] }})
                             </button>
                         </article>
                     @endforeach
@@ -388,12 +355,11 @@
             @endif
         </section>
 
-        {{-- PANEL 2: Rincian Log Harian --}}
+        {{-- PANEL 2: Log Harian --}}
         <section id="panelLogs" role="tabpanel" aria-labelledby="tabLogsBtn" class="hidden">
             @if ($dailyLogs->isEmpty())
-                <div class="no-result-box space-y-2">
-                    <p class="text-base font-bold text-white">Belum ada log presensi pada periode ini.</p>
-                    <p class="text-sm text-[#94a3b8]">Rentang tanggal {{ $filters['start_date'] }} s/d {{ $filters['end_date'] }} belum memiliki catatan presensi untuk kategori ini.</p>
+                <div class="no-result-box">
+                    <p class="text-sm font-semibold text-white">Belum ada log presensi.</p>
                 </div>
             @else
                 <div class="hidden lg:block pusimpel-card overflow-hidden">
@@ -401,45 +367,45 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="border-b border-white/15 bg-white/5 text-xs font-bold text-[#e2e8f0]">
-                                    <th class="py-3.5 px-4">Tanggal &amp; Jam</th>
-                                    <th class="py-3.5 px-4">NIK &amp; Nama</th>
-                                    <th class="py-3.5 px-4">Status</th>
-                                    <th class="py-3.5 px-4">Sesi</th>
-                                    <th class="py-3.5 px-4">Ketepatan</th>
-                                    <th class="py-3.5 px-4">Persetujuan</th>
-                                    <th class="py-3.5 px-4">Lokasi &amp; Catatan</th>
+                                    <th class="py-3 px-4">Waktu</th>
+                                    <th class="py-3 px-4">Personil</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Sesi</th>
+                                    <th class="py-3 px-4">Ketepatan</th>
+                                    <th class="py-3 px-4">Approval</th>
+                                    <th class="py-3 px-4">Lokasi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/10 text-sm">
                                 @foreach ($dailyLogs as $log)
                                     <tr class="pusimpel-table-row transition-colors">
-                                        <td class="py-3.5 px-4 whitespace-nowrap font-mono text-xs">
+                                        <td class="py-3 px-4 whitespace-nowrap font-mono text-xs">
                                             <div class="font-bold text-white">{{ $log['tanggal'] }}</div>
                                             <div class="text-[#94a3b8]">{{ $log['waktu'] }} WIB</div>
                                         </td>
-                                        <td class="py-3.5 px-4">
+                                        <td class="py-3 px-4">
                                             <div class="font-semibold text-white">{{ $log['name'] }}</div>
-                                            <div class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }} · {{ $log['department'] }}</div>
+                                            <div class="text-xs font-mono text-[#94a3b8]">{{ $log['nik'] }}</div>
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap text-xs font-bold text-[#e2e8f0]">
+                                        <td class="py-3 px-4 whitespace-nowrap text-xs font-semibold text-[#e2e8f0]">
                                             {{ $log['status_label'] }}
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap text-xs font-semibold text-white">
+                                        <td class="py-3 px-4 whitespace-nowrap text-xs font-semibold text-white">
                                             {{ $log['slot'] }}
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
+                                        <td class="py-3 px-4 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
                                                 {{ $log['status'] }}
                                             </span>
                                         </td>
-                                        <td class="py-3.5 px-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border
+                                        <td class="py-3 px-4 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border
                                                 {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
                                                 {{ $log['approval_label'] }}
                                             </span>
                                         </td>
-                                        <td class="py-3.5 px-4 text-xs text-[#cbd5e1] max-w-xs">
-                                            <div class="font-semibold text-white">{{ $log['lokasi'] }} ({{ $log['radius_label'] }})</div>
+                                        <td class="py-3 px-4 text-xs text-[#cbd5e1] max-w-xs">
+                                            <div class="text-white">{{ $log['lokasi'] }}</div>
                                             @if ($log['catatan'] !== '')
                                                 <div class="mt-0.5 break-words text-[#94a3b8]">{{ $log['catatan'] }}</div>
                                             @endif
@@ -463,17 +429,17 @@
                             </div>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="px-2.5 py-0.5 rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">{{ $log['slot'] }}</span>
-                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
+                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold {{ $log['is_late'] ? 'badge-amber' : 'badge-em' }}">
                                     {{ $log['status'] }}
                                 </span>
-                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
+                                <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold {{ $log['approval_status'] === 'approved' ? 'badge-em' : ($log['approval_status'] === 'rejected' ? 'badge-rose' : 'badge-amber') }}">
                                     {{ $log['approval_label'] }}
                                 </span>
                             </div>
-                            <div class="text-xs text-[#cbd5e1]">
-                                <div><strong class="text-white">Lokasi:</strong> {{ $log['lokasi'] }}</div>
+                            <div class="text-xs text-[#94a3b8]">
+                                <div class="text-[#cbd5e1]">{{ $log['lokasi'] }}</div>
                                 @if ($log['catatan'] !== '')
-                                    <div class="mt-0.5 break-words text-[#94a3b8]">{{ $log['catatan'] }}</div>
+                                    <div class="mt-0.5 break-words">{{ $log['catatan'] }}</div>
                                 @endif
                             </div>
                         </article>
@@ -494,12 +460,12 @@
         <div class="pusimpel-card w-full max-w-2xl overflow-hidden">
             <div class="px-5 py-4 border-b border-white/15 flex items-center justify-between gap-4">
                 <div>
-                    <h2 id="detailModalTitle" class="font-heading text-lg font-bold text-white">Rincian Log Presensi</h2>
+                    <h2 id="detailModalTitle" class="font-heading text-lg font-bold text-white">Log Presensi</h2>
                     <p id="detailModalSubtitle" class="text-xs font-mono text-[#94a3b8] mt-0.5"></p>
                 </div>
                 <button type="button"
                         id="closeDetailModalBtn"
-                        aria-label="Tutup rincian log presensi"
+                        aria-label="Tutup"
                         class="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center pusimpel-btn-ghost">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18" />
@@ -576,13 +542,13 @@
             tabLogsBtn.setAttribute('aria-selected', isSummary ? 'false' : 'true');
 
             if (isSummary) {
-                tabSummaryBtn.className = 'pill-btn min-h-[44px] active';
-                tabLogsBtn.className = 'pill-btn min-h-[44px]';
+                tabSummaryBtn.className = 'pill-btn min-h-[40px] active';
+                tabLogsBtn.className = 'pill-btn min-h-[40px]';
                 panelSummary.classList.remove('hidden');
                 panelLogs.classList.add('hidden');
             } else {
-                tabLogsBtn.className = 'pill-btn min-h-[44px] active';
-                tabSummaryBtn.className = 'pill-btn min-h-[44px]';
+                tabLogsBtn.className = 'pill-btn min-h-[40px] active';
+                tabSummaryBtn.className = 'pill-btn min-h-[40px]';
                 panelLogs.classList.remove('hidden');
                 panelSummary.classList.add('hidden');
             }
@@ -622,8 +588,8 @@
             }
 
             modalTitle.textContent = name;
-            modalSubtitle.textContent = `NIK: ${nik} · Periode ${startInput ? startInput.value : ''} s/d ${endInput ? endInput.value : ''}`;
-            modalBody.innerHTML = '<div class="py-8 text-center text-sm font-semibold text-[#94a3b8]">Memuat rincian log presensi...</div>';
+            modalSubtitle.textContent = `${nik} · ${startInput ? startInput.value : ''} s/d ${endInput ? endInput.value : ''}`;
+            modalBody.innerHTML = '<div class="py-8 text-center text-sm font-semibold text-[#94a3b8]">Memuat...</div>';
             modal.classList.remove('hidden');
             if (closeBtn) {
                 closeBtn.focus();
@@ -641,17 +607,12 @@
                 const json = await res.json();
 
                 if (!res.ok || !json.success) {
-                    throw new Error(json.message || 'Gagal memuat rincian presensi.');
+                    throw new Error(json.message || 'Gagal memuat data.');
                 }
 
                 const logs = json.data.logs || [];
                 if (logs.length === 0) {
-                    modalBody.innerHTML = `
-                        <div class="no-result-box space-y-1">
-                            <p class="font-bold text-white">Belum ada catatan presensi</p>
-                            <p class="text-xs text-[#94a3b8]">Tidak ditemukan log presensi untuk personil ini pada rentang tanggal yang dipilih.</p>
-                        </div>
-                    `;
+                    modalBody.innerHTML = '<div class="no-result-box"><p class="text-sm font-semibold text-white">Belum ada catatan presensi.</p></div>';
                     return;
                 }
 
@@ -672,12 +633,12 @@
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     <span class="px-2.5 py-0.5 rounded-full border border-white/15 bg-white/10 text-xs font-semibold text-white">${escapeHtml(item.slot)}</span>
-                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold ${lateClass}">${escapeHtml(item.status)}</span>
-                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold ${appClass}">${escapeHtml(item.approval_label)}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${lateClass}">${escapeHtml(item.status)}</span>
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-semibold ${appClass}">${escapeHtml(item.approval_label)}</span>
                                 </div>
                             </div>
                             <div class="text-xs text-[#cbd5e1]">
-                                <strong class="text-white">Lokasi:</strong> ${escapeHtml(item.lokasi)} (${escapeHtml(item.radius_label)})
+                                ${escapeHtml(item.lokasi)} (${escapeHtml(item.radius_label)})
                             </div>
                             ${notesHtml}
                         </div>
@@ -686,9 +647,8 @@
             } catch (err) {
                 modalBody.innerHTML = `
                     <div role="alert" class="rounded-2xl border p-4 text-sm space-y-2 badge-rose">
-                        <p class="font-bold">Gagal memuat rincian log</p>
-                        <p>${escapeHtml(err.message || 'Terjadi kesalahan saat menghubungi server.')}</p>
-                        <button type="button" id="retryDetailBtn" class="min-h-[40px] px-4 py-1.5 rounded-full text-xs pusimpel-btn-primary">
+                        <p class="font-bold">${escapeHtml(err.message || 'Gagal memuat data.')}</p>
+                        <button type="button" id="retryDetailBtn" class="min-h-[38px] px-4 py-1.5 rounded-full text-xs pusimpel-btn-primary">
                             Coba Lagi
                         </button>
                     </div>
