@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AttendanceRecapService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,6 +23,21 @@ class RecapController extends Controller
     public function nonTetap(Request $request): View
     {
         return $this->renderCategory($request, AttendanceRecapService::CATEGORY_NON_TETAP);
+    }
+
+    public function cetak(Request $request, string $category): View
+    {
+        $resolvedCategory = $this->normalizeCategory($category);
+        $recap = $this->recapService->buildMonthlyRecap($resolvedCategory, $request->query());
+        $isPegawai = $resolvedCategory === AttendanceRecapService::CATEGORY_PEGAWAI;
+
+        return view('recap.cetak', [
+            'category' => $resolvedCategory,
+            'pageTitle' => $isPegawai
+                ? 'Laporan Absensi Pegawai'
+                : 'Laporan Absensi Capeg, Honor, PKWT, Kontrak',
+            'recap' => $recap,
+        ]);
     }
 
     public function detail(Request $request, string $category, string $nik): JsonResponse
@@ -58,6 +74,63 @@ class RecapController extends Controller
     public function exportCsv(Request $request, string $category): StreamedResponse
     {
         $resolvedCategory = $this->normalizeCategory($category);
+
+        if ($request->filled('nik') || ($request->filled('bulan') && $request->filled('tahun'))) {
+            $recap = $this->recapService->buildMonthlyRecap($resolvedCategory, $request->query());
+            $person = $recap['selected_person'];
+            $safeNik = preg_replace('/[^A-Za-z0-9\-]/', '_', (string) ($person['nik'] ?? 'pegawai'));
+            $filename = sprintf('absensi-%s-%s-%s.csv', $safeNik, $recap['bulan'], $recap['tahun']);
+
+            return response()->streamDownload(function () use ($recap, $person): void {
+                $handle = fopen('php://output', 'w');
+                if ($handle === false) {
+                    return;
+                }
+
+                fwrite($handle, "\xEF\xBB\xBF");
+
+                if ($person) {
+                    fputcsv($handle, ['NIK', $person['nik']]);
+                    fputcsv($handle, ['Nama Pegawai', $person['name']]);
+                    fputcsv($handle, ['Status', $person['status_label']]);
+                    fputcsv($handle, ['Periode', $recap['period_label']]);
+                    fputcsv($handle, []);
+                }
+
+                fputcsv($handle, [
+                    'Tanggal',
+                    'Hari',
+                    'Jadwal Masuk',
+                    'Jadwal Pulang',
+                    'Scan Pagi (Masuk)',
+                    'Scan Siang (Keluar)',
+                    'Scan Siang (Masuk)',
+                    'Scan Sore (Pulang)',
+                    'Status',
+                    'Keterangan',
+                ]);
+
+                foreach ($recap['daily_logs'] as $log) {
+                    fputcsv($handle, [
+                        Carbon::parse($log['tanggal'])->format('d/m/Y'),
+                        $log['hari'],
+                        $log['jadwal_in'],
+                        $log['jadwal_out'],
+                        $log['scan1'],
+                        $log['scan2'],
+                        $log['scan3'],
+                        $log['scan4'],
+                        $log['status_kehadiran'],
+                        $log['catatan'] !== '' ? $log['catatan'] : '-',
+                    ]);
+                }
+
+                fclose($handle);
+            }, $filename, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        }
+
         $recap = $this->recapService->buildRecap($resolvedCategory, $request->query());
 
         $slug = $resolvedCategory === AttendanceRecapService::CATEGORY_PEGAWAI
@@ -77,7 +150,6 @@ class RecapController extends Controller
                 return;
             }
 
-            // BOM UTF-8 agar Microsoft Excel membaca karakter Indonesia dengan benar
             fwrite($handle, "\xEF\xBB\xBF");
 
             fputcsv($handle, [
@@ -142,7 +214,7 @@ class RecapController extends Controller
         $dbError = null;
 
         try {
-            $recap = $this->recapService->buildRecap($category, $request->query());
+            $recap = $this->recapService->buildMonthlyRecap($category, $request->query());
         } catch (\Throwable) {
             $dbError = 'Terjadi kendala saat mengambil data rekap absensi.';
         }
@@ -163,9 +235,8 @@ class RecapController extends Controller
     private function normalizeCategory(string $category): string
     {
         return match ($category) {
-            AttendanceRecapService::CATEGORY_PEGAWAI => AttendanceRecapService::CATEGORY_PEGAWAI,
-            AttendanceRecapService::CATEGORY_NON_TETAP, 'non-tetap' => AttendanceRecapService::CATEGORY_NON_TETAP,
-            default => abort(404),
+            AttendanceRecapService::CATEGORY_NON_TETAP, 'capeg-honor-pkwt-kontrak' => AttendanceRecapService::CATEGORY_NON_TETAP,
+            default => AttendanceRecapService::CATEGORY_PEGAWAI,
         };
     }
 }

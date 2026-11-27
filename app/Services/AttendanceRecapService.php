@@ -274,6 +274,87 @@ class AttendanceRecapService
     }
 
     /**
+     * Bangun rekap absensi bulanan per pegawai (UX langsung seperti attendance & attendant).
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    public function buildMonthlyRecap(string $category, array $filters): array
+    {
+        $now = Carbon::now('Asia/Jakarta');
+        $rawBulan = (int) ($filters['bulan'] ?? $now->month);
+        $bulanInt = ($rawBulan >= 1 && $rawBulan <= 12) ? $rawBulan : $now->month;
+        $bulan = sprintf('%02d', $bulanInt);
+
+        $rawTahun = (int) ($filters['tahun'] ?? $now->year);
+        $tahunInt = ($rawTahun >= 2000 && $rawTahun <= 2100) ? $rawTahun : $now->year;
+        $tahun = (string) $tahunInt;
+
+        $subStatus = trim((string) ($filters['sub_status'] ?? ''));
+        $requestedNik = trim((string) ($filters['nik'] ?? ''));
+
+        $allPersonnel = $this->getPersonnelByCategory($category);
+        $statusBreakdown = [];
+        if ($category === self::CATEGORY_NON_TETAP) {
+            foreach (self::NON_TETAP_STATUSES as $status) {
+                $statusBreakdown[$status] = $allPersonnel->where('status_label', $status)->count();
+            }
+        } else {
+            $statusBreakdown['Pegawai Tetap'] = $allPersonnel->where('status_label', 'Pegawai Tetap')->count();
+            $statusBreakdown['Direksi'] = $allPersonnel->where('status_label', 'Direksi')->count();
+        }
+
+        $personnel = $subStatus !== ''
+            ? $allPersonnel->filter(fn (array $p): bool => strcasecmp($p['status_label'], $subStatus) === 0)->values()
+            : $allPersonnel;
+
+        $selectedPerson = $requestedNik !== ''
+            ? $personnel->first(fn (array $p): bool => strcasecmp($p['nik'], $requestedNik) === 0)
+            : null;
+
+        if (! $selectedPerson && $personnel->isNotEmpty()) {
+            $selectedPerson = $personnel->first();
+        }
+
+        $periodStart = Carbon::createFromDate($tahunInt, $bulanInt, 1, 'Asia/Jakarta');
+        $startDate = $periodStart->toDateString();
+        $endDate = $periodStart->copy()->endOfMonth()->toDateString();
+
+        $dailyLogs = $selectedPerson
+            ? $this->fetchAttendanceAndAttendantRecords(collect([$selectedPerson]), $startDate, $endDate, true)
+            : collect();
+
+        $namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+        $totals = [
+            'hari_hadir' => $dailyLogs->filter(fn (array $log): bool => $log['has_scan'])->count(),
+            'hadir_penuh' => $dailyLogs->filter(fn (array $log): bool => $log['scan1'] !== '-' && $log['scan4'] !== '-')->count(),
+            'hadir_wd' => $dailyLogs->filter(fn (array $log): bool => $log['status_kehadiran'] === 'Hadir Penuh')->count(),
+            'hadir_we' => $dailyLogs->filter(fn (array $log): bool => $log['status_kehadiran'] === 'Hadir (Hari Libur)')->count(),
+            'izin_count' => $dailyLogs->filter(fn (array $log): bool => ! $log['has_table1_scan'] && $log['has_reason'])->count(),
+            'terlambat_count' => $dailyLogs->filter(fn (array $log): bool => $log['is_late'])->count(),
+        ];
+
+        return [
+            'category' => $category,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'bulan_label' => $namaBulan[$bulanInt] ?? $bulan,
+            'period_label' => ($namaBulan[$bulanInt] ?? $bulan).' '.$tahun,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'sub_status' => $subStatus,
+            'status_breakdown' => $statusBreakdown,
+            'tahun_list' => $this->loadAvailableYears($tahunInt),
+            'nama_bulan_list' => $namaBulan,
+            'personnel' => $personnel,
+            'selected_person' => $selectedPerson,
+            'daily_logs' => $dailyLogs,
+            'totals' => $totals,
+        ];
+    }
+
+    /**
      * Ambil rincian absensi kalender harian penuh satu pegawai sesuai attendance dan attendant.
      *
      * @return array<string, mixed>|null
@@ -491,6 +572,9 @@ class AttendanceRecapService
 
             $notes = [];
             $isLate = false;
+            $scan1Late = false;
+            $scan2Early = false;
+            $scan3Late = false;
 
             if ($hasTable1Scan) {
                 if ($scan1 !== '-' && $scan4 !== '-') {
@@ -515,7 +599,7 @@ class AttendanceRecapService
             }
 
             if ($hasScan && in_array($hariIndo, ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'], true) && ! $isHoliday) {
-                [$isLate, $fpNotes] = $this->evaluateFingerprintPunctuality($scan1, $scan2, $scan3, $scan4, $hariIndo, $isShift);
+                [$isLate, $fpNotes, $scan1Late, $scan2Early, $scan3Late] = $this->evaluateFingerprintPunctuality($scan1, $scan2, $scan3, $scan4, $hariIndo, $isShift);
                 $notes = array_merge($notes, $fpNotes);
             }
 
@@ -556,6 +640,9 @@ class AttendanceRecapService
                 'scan2' => $scan2,
                 'scan3' => $scan3,
                 'scan4' => $scan4,
+                'scan1_late' => $scan1Late,
+                'scan2_early' => $scan2Early,
+                'scan3_late' => $scan3Late,
                 'has_table1_scan' => $hasTable1Scan,
                 'has_scan' => $hasScan,
                 'has_reason' => $hasReason,
@@ -810,12 +897,15 @@ class AttendanceRecapService
     /**
      * Evaluasi keterlambatan scan fingerprint sesuai aturan attendance/index.php dan cetak.php.
      *
-     * @return array{0: bool, 1: list<string>}
+     * @return array{0: bool, 1: list<string>, 2: bool, 3: bool, 4: bool}
      */
     private function evaluateFingerprintPunctuality(string $scan1, string $scan2, string $scan3, string $scan4, string $hariIndo, bool $isShift): array
     {
         $isLate = false;
         $notes = [];
+        $scan1Late = false;
+        $scan2Early = false;
+        $scan3Late = false;
 
         $tScan1 = $scan1 !== '-' ? strtotime($scan1) : false;
         $tScan4 = $scan4 !== '-' ? strtotime($scan4) : false;
@@ -830,15 +920,18 @@ class AttendanceRecapService
             if ($isShiftSiang) {
                 if ($tScan1 > strtotime('14:00')) {
                     $isLate = true;
+                    $scan1Late = true;
                     $notes[] = 'Telat Masuk Shift Siang';
                 }
             } elseif ($isShiftMalam) {
                 if ($tScan1 > strtotime('22:00')) {
                     $isLate = true;
+                    $scan1Late = true;
                     $notes[] = 'Telat Masuk Shift Malam';
                 }
             } elseif ($tScan1 > strtotime('08:00')) {
                 $isLate = true;
+                $scan1Late = true;
                 $notes[] = 'Telat Masuk Pagi';
             }
         }
@@ -847,17 +940,53 @@ class AttendanceRecapService
             if ($scan2 !== '-') {
                 $limitKeluar = $hariIndo === 'Jumat' ? strtotime('11:30') : strtotime('12:00');
                 if (strtotime($scan2) < $limitKeluar) {
+                    $scan2Early = true;
                     $notes[] = 'Cepat Keluar Siang';
                 }
             }
 
             if ($scan3 !== '-' && strtotime($scan3) > strtotime('13:00')) {
                 $isLate = true;
+                $scan3Late = true;
                 $notes[] = 'Telat Masuk Siang';
             }
         }
 
-        return [$isLate, $notes];
+        return [$isLate, $notes, $scan1Late, $scan2Early, $scan3Late];
+    }
+
+    /**
+     * Ambil daftar tahun unik dari tempdatascan/table1 untuk dropdown pilihan tahun.
+     *
+     * @return list<int>
+     */
+    private function loadAvailableYears(int $selectedYear): array
+    {
+        $kepegConn = $this->kepegawaianConnectionName();
+        $years = [$selectedYear, (int) Carbon::now('Asia/Jakarta')->year];
+
+        try {
+            if (Schema::connection($kepegConn)->hasTable('table1')) {
+                $rows = DB::connection($kepegConn)
+                    ->table('table1')
+                    ->selectRaw('DISTINCT SUBSTR(dtgl, 1, 4) as y')
+                    ->pluck('y');
+
+                foreach ($rows as $row) {
+                    $yearInt = (int) $row;
+                    if ($yearInt >= 2000 && $yearInt <= 2100) {
+                        $years[] = $yearInt;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Gunakan tahun bawaan bila query daftar tahun tidak dapat dijalankan
+        }
+
+        $years = array_values(array_unique($years));
+        rsort($years);
+
+        return $years;
     }
 
     /**

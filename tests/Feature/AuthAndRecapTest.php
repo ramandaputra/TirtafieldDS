@@ -87,16 +87,20 @@ class AuthAndRecapTest extends TestCase
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
-        $response = $this->actingAs($user)->get('/rekap/pegawai?start_date=2026-11-18&end_date=2026-11-21');
+        $response = $this->actingAs($user)->get('/rekap/pegawai?nik=020101&bulan=11&tahun=2026');
 
         $response->assertStatus(200);
+        $response->assertSee('Pilih Pegawai');
         $response->assertSee('Pegawai Tetap Satu');
-        $response->assertSee('Direktur Utama');
+        $response->assertSee('November 2026');
+        $response->assertSee('07:55');
+        $response->assertSee('12:05');
+        $response->assertSee('13:02');
+        $response->assertSee('16:10');
         $response->assertSee('DINAS LUAR KOTA');
         $response->assertSee('Hadir Penuh');
+        $response->assertSee('Cetak PDF');
         $response->assertDontSee('Capeg Satu');
-        $response->assertDontSee('Honor Satu');
-        $response->assertDontSee('PKWT Satu');
         $response->assertDontSee('Kontrak Satu');
     }
 
@@ -104,7 +108,7 @@ class AuthAndRecapTest extends TestCase
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
 
-        $all = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-18&end_date=2026-11-21');
+        $all = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?nik=H202507&bulan=11&tahun=2026');
         $all->assertStatus(200);
         $all->assertSee('Capeg Satu');
         $all->assertSee('Honor Satu');
@@ -113,16 +117,23 @@ class AuthAndRecapTest extends TestCase
         $all->assertSee('Izin Khusus');
         $all->assertDontSee('Pegawai Tetap Satu');
 
-        $capegOnly = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?start_date=2026-11-18&end_date=2026-11-21&sub_status=Capeg');
+        $capegOnly = $this->actingAs($user)->get('/rekap/capeg-honor-pkwt-kontrak?sub_status=Capeg&bulan=11&tahun=2026');
         $capegOnly->assertStatus(200);
         $capegOnly->assertSee('Capeg Satu');
         $capegOnly->assertDontSee('Honor Satu');
         $capegOnly->assertDontSee('Kontrak Satu');
     }
 
-    public function test_detail_json_and_csv_export_match_attendance_and_attendant(): void
+    public function test_print_view_detail_json_and_csv_export_match_attendance_and_attendant(): void
     {
         $user = User::where('nik', 'P242101')->firstOrFail();
+
+        $printPage = $this->actingAs($user)->get('/rekap/pegawai/cetak?nik=020101&bulan=11&tahun=2026');
+        $printPage->assertStatus(200);
+        $printPage->assertSee('Laporan Absensi Pegawai');
+        $printPage->assertSee('Pegawai Tetap Satu');
+        $printPage->assertSee('Keterangan Warna');
+        $printPage->assertSee('DINAS LUAR KOTA');
 
         // K202609 has Shift Siang on 2026-11-18 (14:15 - 22:05)
         $detail = $this->actingAs($user)->getJson('/rekap/non_tetap/detail/K202609?start_date=2026-11-18&end_date=2026-11-18');
@@ -136,11 +147,7 @@ class AuthAndRecapTest extends TestCase
             ->assertJsonPath('data.logs.0.is_late', true)
             ->assertJsonPath('data.logs.0.catatan', 'Telat Masuk Shift Siang');
 
-        // 020101 over 2026-11-18..2026-11-21:
-        // 18: table1 + tempdatascan (Hadir Penuh, 4 scans)
-        // 19: attendant DINAS LUAR KOTA
-        // 20 (Jumat): table1 empty -> (-)
-        // 21 (Sabtu): Libur Akhir Pekan
+        // 020101 over 2026-11-18..2026-11-21
         $detailPegawai = $this->actingAs($user)->getJson('/rekap/pegawai/detail/020101?start_date=2026-11-18&end_date=2026-11-21');
         $detailPegawai->assertStatus(200)
             ->assertJsonPath('success', true)
@@ -159,14 +166,14 @@ class AuthAndRecapTest extends TestCase
             ->assertJsonPath('data.logs.3.jadwal_in', '-')
             ->assertJsonPath('data.logs.3.status_kehadiran', 'Libur Akhir Pekan');
 
-        $csv = $this->actingAs($user)->get('/rekap/pegawai/export?start_date=2026-11-18&end_date=2026-11-21');
+        $csv = $this->actingAs($user)->get('/rekap/pegawai/export?nik=020101&bulan=11&tahun=2026');
         $csv->assertStatus(200);
         $this->assertStringContainsString('text/csv', (string) $csv->headers->get('Content-Type'));
 
         $content = $csv->streamedContent();
         $this->assertStringContainsString('Pegawai Tetap Satu', $content);
-        $this->assertStringContainsString('Tanpa Keterangan (-)', $content);
-        $this->assertStringNotContainsString('Kontrak Satu', $content);
+        $this->assertStringContainsString('18/11/2026', $content);
+        $this->assertStringContainsString('DINAS LUAR KOTA', $content);
     }
 
     public function test_user_can_logout(): void

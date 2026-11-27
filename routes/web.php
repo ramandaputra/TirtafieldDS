@@ -15,6 +15,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/rekap/pegawai', [RecapController::class, 'pegawai'])->name('rekap.pegawai');
     Route::get('/rekap/capeg-honor-pkwt-kontrak', [RecapController::class, 'nonTetap'])->name('rekap.non-tetap');
+    Route::get('/rekap/{category}/cetak', [RecapController::class, 'cetak'])->name('rekap.cetak');
     Route::get('/rekap/{category}/detail/{nik}', [RecapController::class, 'detail'])->name('rekap.detail');
     Route::get('/rekap/{category}/export', [RecapController::class, 'exportCsv'])->name('rekap.export');
 });
